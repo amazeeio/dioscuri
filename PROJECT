@@ -1,0 +1,7 @@
+domain: amazee.io
+repo: github.com/amazeeio/dioscuri
+resources:
+- group: dioscuri
+  kind: RouteMigrate
+  version: v1
+version: "2"

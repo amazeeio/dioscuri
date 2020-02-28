@@ -1,0 +1,7 @@
+apiVersion: dioscuri.amazee.io/v1
+kind: RouteMigrate
+metadata:
+  name: routemigrate-sample
+spec:
+  # Add fields here
+  foo: bar
