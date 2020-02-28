@@ -10,7 +10,7 @@ Any routes that need to be migrated between the source and destination namespace
 Routes flagged in both the source and destination namespaces will be swapped between them.
 
 The examples below, when triggered, will:
-* swap `stanby.example.com` from `namespaceB` to `namespaceA`
+* swap `standby.example.com` from `namespaceB` to `namespaceA`
 * swap `www.example.com` from `namespaceA` to `namespaceB`
 * leave `namespacea.example.com` and `namespaceb.example.com` alone
 ###### NamespaceB
