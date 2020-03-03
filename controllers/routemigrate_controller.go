@@ -24,12 +24,11 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/amazeeio/dioscuri/pkg/helper"
 )
 
 // RouteMigrateReconciler reconciles a RouteMigrate object
@@ -60,7 +59,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	// your logic here
 	var dioscuri dioscuriv1.RouteMigrate
 	if err := r.Get(ctx, req.NamespacedName, &dioscuri); err != nil {
-		return ctrl.Result{}, helper.IgnoreNotFound(err)
+		return ctrl.Result{}, IgnoreNotFound(err)
 	}
 	// your logic here
 	finalizerName := "finalizer.dioscuri.amazee.io/v1"
@@ -140,7 +139,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		// The object is not being deleted, so if it does not have our finalizer,
 		// then lets add the finalizer and update the object. This is equivalent
 		// registering our finalizer.
-		if !helper.ContainsString(dioscuri.ObjectMeta.Finalizers, finalizerName) {
+		if !ContainsString(dioscuri.ObjectMeta.Finalizers, finalizerName) {
 			dioscuri.ObjectMeta.Finalizers = append(dioscuri.ObjectMeta.Finalizers, finalizerName)
 			if err := r.Update(context.Background(), &dioscuri); err != nil {
 				return ctrl.Result{}, err
@@ -148,7 +147,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		}
 	} else {
 		// The object is being deleted
-		if helper.ContainsString(dioscuri.ObjectMeta.Finalizers, finalizerName) {
+		if ContainsString(dioscuri.ObjectMeta.Finalizers, finalizerName) {
 			// our finalizer is present, so lets handle any external dependency
 			if err := r.deleteExternalResources(&dioscuri, req.NamespacedName.Namespace); err != nil {
 				// if fail to delete the external dependency here, return with error
@@ -156,7 +155,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 				return ctrl.Result{}, err
 			}
 			// remove our finalizer from the list and update it.
-			dioscuri.ObjectMeta.Finalizers = helper.RemoveString(dioscuri.ObjectMeta.Finalizers, finalizerName)
+			dioscuri.ObjectMeta.Finalizers = RemoveString(dioscuri.ObjectMeta.Finalizers, finalizerName)
 			if err := r.Update(context.Background(), &dioscuri); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -284,4 +283,43 @@ func (r *RouteMigrateReconciler) removeRoute(route *routev1.Route) error {
 		return fmt.Errorf("Unable to delete route %s in %s: %v", route.ObjectMeta.Name, route.ObjectMeta.Namespace, err)
 	}
 	return nil
+}
+
+// IgnoreNotFound will ignore not found errors
+func IgnoreNotFound(err error) error {
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+// ContainsString check if a slice contains a string
+func ContainsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveString remove string from a sliced
+func RemoveString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
+}
+
+// ContainsStatus check if conditions contains a condition
+func ContainsStatus(slice []interface{}, s interface{}) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
 }
