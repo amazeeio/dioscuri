@@ -51,7 +51,7 @@ const (
 // +kubebuilder:rbac:groups=dioscuri.amazee.io,resources=routemigrates,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=dioscuri.amazee.io,resources=routemigrates/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list
-// +kubebuilder:rbac:groups="",resources=routes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
 
 func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
