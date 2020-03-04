@@ -13,6 +13,7 @@ rules:
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - dioscuri.amazee.io
   resources:
@@ -45,3 +46,9 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes/custom-host
+  verbs:
+  - create
