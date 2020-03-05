@@ -28,9 +28,8 @@ type RouteMigrateSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Migrate is an example field of RouteMigrate. Edit RouteMigrate_types.go to remove/update
-	Migrate              bool     `json:"migrate,omitempty"`
-	DestinationNamespace string   `json:"destinationNamespace,omitempty"`
-	Routes               []string `json:"routes,omitempty"`
+	DestinationNamespace string             `json:"destinationNamespace,omitempty"`
+	Routes               RouteMigrateRoutes `json:"routes,omitempty"`
 }
 
 // RouteMigrateStatus defines the observed state of RouteMigrate
@@ -43,8 +42,14 @@ type RouteMigrateStatus struct {
 // RouteMigrateConditions defines the observed conditions of the migrations
 type RouteMigrateConditions struct {
 	// LastTransitionTime time.Time `json:"lastTransitionTime"`
-	Status string `json:"status"`
-	Type   string `json:"type"`
+	Status    string `json:"status"`
+	Type      string `json:"type"`
+	Condition string `json:"condition"`
+}
+
+type RouteMigrateRoutes struct {
+	ActiveRoutes  string `json:"activeRoutes"`
+	StandbyRoutes string `json:"standbyRoutes"`
 }
 
 // +kubebuilder:object:root=true

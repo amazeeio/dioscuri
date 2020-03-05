@@ -35,15 +35,19 @@ spec:
           description: RouteMigrateSpec defines the desired state of RouteMigrate
           properties:
             destinationNamespace:
-              type: string
-            migrate:
               description: Migrate is an example field of RouteMigrate. Edit RouteMigrate_types.go
                 to remove/update
-              type: boolean
+              type: string
             routes:
-              items:
-                type: string
-              type: array
+              properties:
+                activeRoutes:
+                  type: string
+                standbyRoutes:
+                  type: string
+              required:
+              - activeRoutes
+              - standbyRoutes
+              type: object
           type: object
         status:
           description: RouteMigrateStatus defines the observed state of RouteMigrate
@@ -56,12 +60,15 @@ spec:
                 description: RouteMigrateConditions defines the observed conditions
                   of the migrations
                 properties:
+                  condition:
+                    type: string
                   status:
                     description: LastTransitionTime time.Time `json:"lastTransitionTime"`
                     type: string
                   type:
                     type: string
                 required:
+                - condition
                 - status
                 - type
                 type: object

@@ -18,6 +18,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	dioscuriv1 "github.com/amazeeio/dioscuri/api/v1"
 	"github.com/go-logr/logr"
@@ -76,12 +77,19 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	if dioscuri.ObjectMeta.DeletionTimestamp.IsZero() {
 		// check if the migrate annotation is set to true
 		if dioscuri.Annotations["dioscuri.amazee.io/migrate"] == "true" {
+			var activeMigratedRoutes []string
+			var standbyMigratedRoutes []string
 			// first set the migration to false after we start
 			// this way we shouldn't proceed to do any more changes if there is an error as there might be something wrong further down.
 			dioscuri.Annotations["dioscuri.amazee.io/migrate"] = "false"
 			if err := r.Update(context.Background(), &dioscuri); err != nil {
 				return ctrl.Result{}, err
 			}
+			r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+				Status:    "True",
+				Type:      "started",
+				Condition: "Started route migration",
+			}, activeMigratedRoutes, standbyMigratedRoutes)
 			sourceNamespace := dioscuri.ObjectMeta.Namespace
 			destinationNamespace := dioscuri.Spec.DestinationNamespace
 			opLog.Info(fmt.Sprintf("Beginning route migration checks for routes in %s moving to %s", sourceNamespace, destinationNamespace))
@@ -94,6 +102,11 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 				opLog.Info(fmt.Sprintf("%v", err))
 			}
 			if err := r.cleanUpAcmeChallenges(&dioscuri, acmeSourceToDestination); err != nil {
+				r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+					Status:    "True",
+					Type:      "failed",
+					Condition: fmt.Sprintf("%v", err),
+				}, activeMigratedRoutes, standbyMigratedRoutes)
 				return ctrl.Result{}, err
 			}
 			acmeDestinationToSource := &routev1.RouteList{}
@@ -101,6 +114,11 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 				opLog.Info(fmt.Sprintf("%v", err))
 			}
 			if err := r.cleanUpAcmeChallenges(&dioscuri, acmeDestinationToSource); err != nil {
+				r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+					Status:    "True",
+					Type:      "failed",
+					Condition: fmt.Sprintf("%v", err),
+				}, activeMigratedRoutes, standbyMigratedRoutes)
 				return ctrl.Result{}, err
 			}
 			// END ACME-CHALLENGE CLEANUP SECTION
@@ -127,15 +145,32 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			for _, route := range migrateSourceToDestination.Items {
 				// migrate these routes
 				if result, err := r.individualRouteMigration(&dioscuri, &route, sourceNamespace, destinationNamespace); err != nil {
+					r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+						Status:    "True",
+						Type:      "failed",
+						Condition: fmt.Sprintf("%v", err),
+					}, activeMigratedRoutes, standbyMigratedRoutes)
 					return result, err
 				}
+				activeMigratedRoutes = append(activeMigratedRoutes, route.Spec.Host)
 			}
 			for _, route := range migrateDestinationToSource.Items {
 				// migrate these routes
 				if result, err := r.individualRouteMigration(&dioscuri, &route, destinationNamespace, sourceNamespace); err != nil {
+					r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+						Status:    "True",
+						Type:      "failed",
+						Condition: fmt.Sprintf("%v", err),
+					}, activeMigratedRoutes, standbyMigratedRoutes)
 					return result, err
 				}
+				standbyMigratedRoutes = append(standbyMigratedRoutes, route.Spec.Host)
 			}
+			r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+				Status:    "True",
+				Type:      "completed",
+				Condition: "Completed route migration",
+			}, activeMigratedRoutes, standbyMigratedRoutes)
 		}
 		// The object is not being deleted, so if it does not have our finalizer,
 		// then lets add the finalizer and update the object. This is equivalent
@@ -286,6 +321,20 @@ func (r *RouteMigrateReconciler) removeRoute(route *routev1.Route) error {
 	return nil
 }
 
+// update status
+func (r *RouteMigrateReconciler) updateStatusCondition(dioscuri *dioscuriv1.RouteMigrate, condition dioscuriv1.RouteMigrateConditions, activeRoutes []string, standbyRotues []string) error {
+	// strings.Join(standbyMigratedRoutes, ",")
+	dioscuri.Spec.Routes.ActiveRoutes = strings.Join(activeRoutes, ",")
+	dioscuri.Spec.Routes.StandbyRoutes = strings.Join(standbyRotues, ",")
+	if !ContainsStatus(dioscuri.Status.Conditions, condition) {
+		dioscuri.Status.Conditions = append(dioscuri.Status.Conditions, condition)
+		if err := r.Update(context.Background(), dioscuri); err != nil {
+			return fmt.Errorf("Unable to update status condition: %v", err)
+		}
+	}
+	return nil
+}
+
 // IgnoreNotFound will ignore not found errors
 func IgnoreNotFound(err error) error {
 	if apierrors.IsNotFound(err) {
@@ -316,7 +365,7 @@ func RemoveString(slice []string, s string) (result []string) {
 }
 
 // ContainsStatus check if conditions contains a condition
-func ContainsStatus(slice []interface{}, s interface{}) bool {
+func ContainsStatus(slice []dioscuriv1.RouteMigrateConditions, s dioscuriv1.RouteMigrateConditions) bool {
 	for _, item := range slice {
 		if item == s {
 			return true
