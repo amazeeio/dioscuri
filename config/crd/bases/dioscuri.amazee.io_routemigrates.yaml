@@ -62,13 +62,15 @@ spec:
                 properties:
                   condition:
                     type: string
+                  lastTransitionTime:
+                    type: string
                   status:
-                    description: LastTransitionTime time.Time `json:"lastTransitionTime"`
                     type: string
                   type:
                     type: string
                 required:
                 - condition
+                - lastTransitionTime
                 - status
                 - type
                 type: object
