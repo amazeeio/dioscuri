@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	dioscuriv1 "github.com/amazeeio/dioscuri/api/v1"
 	"github.com/go-logr/logr"
@@ -152,7 +153,11 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 					}, activeMigratedRoutes, standbyMigratedRoutes)
 					return result, err
 				}
-				activeMigratedRoutes = append(activeMigratedRoutes, route.Spec.Host)
+				routeScheme := "http://"
+				if route.Spec.TLS.Termination != "" {
+					routeScheme = "https://"
+				}
+				activeMigratedRoutes = append(activeMigratedRoutes, fmt.Sprintf("%s%s", routeScheme, route.Spec.Host))
 			}
 			for _, route := range migrateDestinationToSource.Items {
 				// migrate these routes
@@ -164,7 +169,11 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 					}, activeMigratedRoutes, standbyMigratedRoutes)
 					return result, err
 				}
-				standbyMigratedRoutes = append(standbyMigratedRoutes, route.Spec.Host)
+				routeScheme := "http://"
+				if route.Spec.TLS.Termination != "" {
+					routeScheme = "https://"
+				}
+				standbyMigratedRoutes = append(standbyMigratedRoutes, fmt.Sprintf("%s%s", routeScheme, route.Spec.Host))
 			}
 			r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
 				Status:    "True",
@@ -323,9 +332,10 @@ func (r *RouteMigrateReconciler) removeRoute(route *routev1.Route) error {
 
 // update status
 func (r *RouteMigrateReconciler) updateStatusCondition(dioscuri *dioscuriv1.RouteMigrate, condition dioscuriv1.RouteMigrateConditions, activeRoutes []string, standbyRotues []string) error {
-	// strings.Join(standbyMigratedRoutes, ",")
 	dioscuri.Spec.Routes.ActiveRoutes = strings.Join(activeRoutes, ",")
 	dioscuri.Spec.Routes.StandbyRoutes = strings.Join(standbyRotues, ",")
+	// set the transition time
+	condition.LastTransitionTime = time.Now().Format(time.RFC3339)
 	if !ContainsStatus(dioscuri.Status.Conditions, condition) {
 		dioscuri.Status.Conditions = append(dioscuri.Status.Conditions, condition)
 		if err := r.Update(context.Background(), dioscuri); err != nil {

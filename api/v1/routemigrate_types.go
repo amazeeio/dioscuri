@@ -41,10 +41,10 @@ type RouteMigrateStatus struct {
 
 // RouteMigrateConditions defines the observed conditions of the migrations
 type RouteMigrateConditions struct {
-	// LastTransitionTime time.Time `json:"lastTransitionTime"`
-	Status    string `json:"status"`
-	Type      string `json:"type"`
-	Condition string `json:"condition"`
+	LastTransitionTime string `json:"lastTransitionTime"`
+	Status             string `json:"status"`
+	Type               string `json:"type"`
+	Condition          string `json:"condition"`
 }
 
 type RouteMigrateRoutes struct {
