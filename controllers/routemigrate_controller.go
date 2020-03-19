@@ -331,11 +331,16 @@ func (r *RouteMigrateReconciler) migrateRoute(dioscuri *dioscuriv1.RouteMigrate,
 
 func (r *RouteMigrateReconciler) updateRoute(dioscuri *dioscuriv1.RouteMigrate, newRoute *routev1.Route, oldRouteNamespace string) error {
 	// add route
+	route := &routev1.Route{}
+	err := r.Get(context.TODO(), types.NamespacedName{Namespace: newRoute.ObjectMeta.Namespace, Name: newRoute.ObjectMeta.Name}, route)
+	if err != nil {
+		return fmt.Errorf("Route %s in namespace %s doesn't exist: %v", route.ObjectMeta.Name, newRoute.ObjectMeta.Namespace, err)
+	}
 	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
 	// add or update the label on the new route to ensure the router picks it up after we do the deletion
-	newRoute.Labels["dioscuri.amazee.io/migrated-from"] = oldRouteNamespace
-	opLog.Info(fmt.Sprintf("Updating route %s in namespace %s", newRoute.ObjectMeta.Name, newRoute.ObjectMeta.Namespace))
-	if err := r.Update(context.Background(), newRoute); err != nil {
+	route.Labels["dioscuri.amazee.io/migrated-from"] = oldRouteNamespace
+	opLog.Info(fmt.Sprintf("Updating route %s in namespace %s", route.ObjectMeta.Name, route.ObjectMeta.Namespace))
+	if err := r.Update(context.Background(), route); err != nil {
 		return fmt.Errorf("Unable to update status condition: %v", err)
 	}
 	return nil
