@@ -17,6 +17,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -88,9 +89,18 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			var standbyMigratedRoutes []string
 			// first set the migration to false after we start
 			// this way we shouldn't proceed to do any more changes if there is an error as there might be something wrong further down.
-			dioscuri.Annotations["dioscuri.amazee.io/migrate"] = "false"
-			if err := r.Update(context.Background(), &dioscuri); err != nil {
-				return ctrl.Result{}, err
+			mergePatch, err := json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]interface{}{
+						"dioscuri.amazee.io/migrate": "false",
+					},
+				},
+			})
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("Unable to create mergepatch for %s, error was: %v", dioscuri.ObjectMeta.Name, err)
+			}
+			if err := r.Patch(context.Background(), &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+				return ctrl.Result{}, fmt.Errorf("Unable to patch routemigrate %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 			}
 			r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
 				Status:    "True",
@@ -161,7 +171,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 					}, activeMigratedRoutes, standbyMigratedRoutes)
 					return ctrl.Result{}, err
 				}
-				migratedRoutes = append(migratedRoutes, MigratedRoutes{NewRoute: newRoute, OldRouteNamespace: destinationNamespace})
+				migratedRoutes = append(migratedRoutes, MigratedRoutes{NewRoute: newRoute, OldRouteNamespace: sourceNamespace})
 				routeScheme := "http://"
 				if route.Spec.TLS.Termination != "" {
 					routeScheme = "https://"
@@ -180,13 +190,16 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 					return ctrl.Result{}, err
 				}
 				// add the migrated route so we go through and fix them up later
-				migratedRoutes = append(migratedRoutes, MigratedRoutes{NewRoute: newRoute, OldRouteNamespace: sourceNamespace})
+				migratedRoutes = append(migratedRoutes, MigratedRoutes{NewRoute: newRoute, OldRouteNamespace: destinationNamespace})
 				routeScheme := "http://"
 				if route.Spec.TLS.Termination != "" {
 					routeScheme = "https://"
 				}
 				standbyMigratedRoutes = append(standbyMigratedRoutes, fmt.Sprintf("%s%s", routeScheme, route.Spec.Host))
 			}
+			// wait a sec before updating the routes
+			checkInterval := time.Duration(1)
+			time.Sleep(checkInterval * time.Second)
 			// once we move all the routes, we have to go through and do a final update on them to make sure any `HostAlreadyClaimed` warning/errors go away
 			for _, migratedRoute := range migratedRoutes {
 				err := r.updateRoute(&dioscuri, migratedRoute.NewRoute, migratedRoute.OldRouteNamespace)
@@ -331,13 +344,32 @@ func (r *RouteMigrateReconciler) migrateRoute(dioscuri *dioscuriv1.RouteMigrate,
 
 func (r *RouteMigrateReconciler) updateRoute(dioscuri *dioscuriv1.RouteMigrate, newRoute *routev1.Route, oldRouteNamespace string) error {
 	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
-	// the new route with label to ensure the router picks it up after we do the deletion
-	newRoute.Labels["dioscuri.amazee.io/migrated-from"] = oldRouteNamespace
-	opLog.Info(fmt.Sprintf("Patching route %s in namespace %s", newRoute.ObjectMeta.Name, newRoute.ObjectMeta.Namespace))
-	if err := r.Patch(context.Background(), newRoute, client.MergeFrom(newRoute.DeepCopy())); err != nil {
-		return fmt.Errorf("Unable to update status condition: %v", err)
+	// check a few times to make sure the old route no longer exists
+	for i := 0; i < 10; i++ {
+		oldRouteExists := r.checkOldRouteExists(dioscuri, newRoute, oldRouteNamespace)
+		if !oldRouteExists {
+			// the new route with label to ensure the router picks it up after we do the deletion
+			mergePatch, err := json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"labels": map[string]interface{}{
+						"dioscuri.amazee.io/migrated-from": oldRouteNamespace,
+					},
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("Unable to create mergepatch for %s, error was: %v", newRoute.ObjectMeta.Name, err)
+			}
+			opLog.Info(fmt.Sprintf("Patching route %s in namespace %s", newRoute.ObjectMeta.Name, newRoute.ObjectMeta.Namespace))
+			if err := r.Patch(context.Background(), newRoute, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+				return fmt.Errorf("Unable to patch route %s, error was: %v", newRoute.ObjectMeta.Name, err)
+			}
+			return nil
+		}
+		// wait 5 secs before re-trying
+		checkInterval := time.Duration(5)
+		time.Sleep(checkInterval * time.Second)
 	}
-	return nil
+	return fmt.Errorf("There was an error checking if the old route still exists before trying to patch the new route, there may be an issue with the routes")
 }
 
 // add any routes if they don't already exist in the new namespace
@@ -354,6 +386,20 @@ func (r *RouteMigrateReconciler) addRouteIfNotExist(dioscuri *dioscuriv1.RouteMi
 		}
 	}
 	return nil
+}
+
+func (r *RouteMigrateReconciler) checkOldRouteExists(dioscuri *dioscuriv1.RouteMigrate, route *routev1.Route, sourceNamespace string) bool {
+	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
+	opLog.Info(fmt.Sprintf("Checking route %s is not in source namespace %s", route.ObjectMeta.Name, sourceNamespace))
+	getRoute := &routev1.Route{}
+	err := r.Get(context.TODO(), types.NamespacedName{Namespace: sourceNamespace, Name: route.ObjectMeta.Name}, getRoute)
+	if err != nil {
+		// there is no route in the source namespace
+		opLog.Info(fmt.Sprintf("Route %s is not in source namespace %s", route.ObjectMeta.Name, sourceNamespace))
+		return false
+	}
+	opLog.Info(fmt.Sprintf("Route %s is in source namespace %s", route.ObjectMeta.Name, sourceNamespace))
+	return true
 }
 
 // remove a given route
