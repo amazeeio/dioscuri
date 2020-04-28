@@ -173,8 +173,10 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 				}
 				migratedRoutes = append(migratedRoutes, MigratedRoutes{NewRoute: newRoute, OldRouteNamespace: sourceNamespace})
 				routeScheme := "http://"
-				if route.Spec.TLS.Termination != "" {
-					routeScheme = "https://"
+				if route.Spec.TLS != nil {
+					if route.Spec.TLS.Termination != "" {
+						routeScheme = "https://"
+					}
 				}
 				activeMigratedRoutes = append(activeMigratedRoutes, fmt.Sprintf("%s%s", routeScheme, route.Spec.Host))
 			}
@@ -192,8 +194,10 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 				// add the migrated route so we go through and fix them up later
 				migratedRoutes = append(migratedRoutes, MigratedRoutes{NewRoute: newRoute, OldRouteNamespace: destinationNamespace})
 				routeScheme := "http://"
-				if route.Spec.TLS.Termination != "" {
-					routeScheme = "https://"
+				if route.Spec.TLS != nil {
+					if route.Spec.TLS.Termination != "" {
+						routeScheme = "https://"
+					}
 				}
 				standbyMigratedRoutes = append(standbyMigratedRoutes, fmt.Sprintf("%s%s", routeScheme, route.Spec.Host))
 			}
