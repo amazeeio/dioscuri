@@ -27,7 +27,6 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -47,15 +46,6 @@ type MigratedRoutes struct {
 	NewRoute          *routev1.Route
 	OldRouteNamespace string
 }
-
-const (
-	// LabelAppName for discovery.
-	LabelAppName = "dioscuri.amazee.io/service-name"
-	// LabelAppType for discovery.
-	LabelAppType = "dioscuri.amazee.io/type"
-	// LabelAppManaged for discovery.
-	LabelAppManaged = "dioscuri.amazee.io/managed-by"
-)
 
 // +kubebuilder:rbac:groups=dioscuri.amazee.io,resources=routemigrates,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=dioscuri.amazee.io,resources=routemigrates/status,verbs=get;update;patch
@@ -99,7 +89,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("Unable to create mergepatch for %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 			}
-			if err := r.Patch(context.Background(), &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, fmt.Errorf("Unable to patch routemigrate %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 			}
 			r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
@@ -110,6 +100,14 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			sourceNamespace := dioscuri.ObjectMeta.Namespace
 			destinationNamespace := dioscuri.Spec.DestinationNamespace
 			opLog.Info(fmt.Sprintf("Beginning route migration checks for routes in %s moving to %s", sourceNamespace, destinationNamespace))
+
+			// check destination namespace exists
+			namespace := corev1.Namespace{}
+			if err := r.Get(ctx, types.NamespacedName{Name: destinationNamespace}, &namespace); err != nil {
+				opLog.Info(fmt.Sprintf("Unable to find destination namespace, error was: %v", err))
+				return ctrl.Result{}, nil
+			}
+
 			// START ACME-CHALLENGE CLEANUP SECTION
 			// check routes in the source namespace for any pending acme-challenges
 			// check if any routes in the source namespace have an exposer label, we need to remove these before we move any routes
@@ -227,7 +225,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		// registering our finalizer.
 		if !ContainsString(dioscuri.ObjectMeta.Finalizers, finalizerName) {
 			dioscuri.ObjectMeta.Finalizers = append(dioscuri.ObjectMeta.Finalizers, finalizerName)
-			if err := r.Update(context.Background(), &dioscuri); err != nil {
+			if err := r.Update(ctx, &dioscuri); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -242,7 +240,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			}
 			// remove our finalizer from the list and update it.
 			dioscuri.ObjectMeta.Finalizers = RemoveString(dioscuri.ObjectMeta.Finalizers, finalizerName)
-			if err := r.Update(context.Background(), &dioscuri); err != nil {
+			if err := r.Update(ctx, &dioscuri); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -421,50 +419,11 @@ func (r *RouteMigrateReconciler) updateStatusCondition(dioscuri *dioscuriv1.Rout
 	dioscuri.Spec.Routes.StandbyRoutes = strings.Join(standbyRotues, ",")
 	// set the transition time
 	condition.LastTransitionTime = time.Now().Format(time.RFC3339)
-	if !ContainsStatus(dioscuri.Status.Conditions, condition) {
+	if !RouteContainsStatus(dioscuri.Status.Conditions, condition) {
 		dioscuri.Status.Conditions = append(dioscuri.Status.Conditions, condition)
 		if err := r.Update(context.Background(), dioscuri); err != nil {
 			return fmt.Errorf("Unable to update status condition: %v", err)
 		}
 	}
 	return nil
-}
-
-// IgnoreNotFound will ignore not found errors
-func IgnoreNotFound(err error) error {
-	if apierrors.IsNotFound(err) {
-		return nil
-	}
-	return err
-}
-
-// ContainsString check if a slice contains a string
-func ContainsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-// RemoveString remove string from a sliced
-func RemoveString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
-}
-
-// ContainsStatus check if conditions contains a condition
-func ContainsStatus(slice []dioscuriv1.RouteMigrateConditions, s dioscuriv1.RouteMigrateConditions) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
 }

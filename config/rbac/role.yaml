@@ -9,11 +9,49 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - ingress/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - services
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - dioscuri.amazee.io
+  resources:
+  - ingressmigrates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dioscuri.amazee.io
+  resources:
+  - ingressmigrates/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - dioscuri.amazee.io
   resources:
