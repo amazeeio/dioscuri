@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  dioscuri:
+  - apiVersion: v2
+    appVersion: 0.1.6rc1
+    created: "2020-05-26T15:21:18.988298+10:00"
+    description: A Helm chart for dioscuri
+    digest: 061da4faee494f78731af48db46d3af8c1e388c0c292b91f5ebb00e3c4c16e84
+    name: dioscuri
+    type: application
+    urls:
+    - dioscuri-0.1.0.tgz
+    version: 0.1.0
+generated: "2020-05-26T15:21:18.986935+10:00"
