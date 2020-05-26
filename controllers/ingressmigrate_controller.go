@@ -51,8 +51,12 @@ type MigratedIngress struct {
 
 // +kubebuilder:rbac:groups=dioscuri.amazee.io,resources=ingressmigrates,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=dioscuri.amazee.io,resources=ingressmigrates/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=ingresses,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups="",resources=ingress/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="*",resources=ingresses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="*",resources=ingress/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="*",resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups="*",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="*",resources=services,verbs=get;list;watch
+// +kubebuilder:rbac:groups="cert-manager.io",resources=certificates,verbs=get;list;watch;create;update;patch;delete
 
 func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()

@@ -9,28 +9,70 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - '*'
+  resources:
   - ingress/status
   verbs:
   - get
   - patch
   - update
 - apiGroups:
-  - ""
+  - '*'
   resources:
   - ingresses
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch
   - update
   - watch
 - apiGroups:
-  - ""
+  - '*'
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - '*'
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - '*'
   resources:
   - services
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - dioscuri.amazee.io

@@ -55,9 +55,12 @@ func init() {
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
+	var openShift bool
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&openShift, "openshift", false,
+		"Enable routemigrates if using openshift.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
@@ -76,13 +79,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.RouteMigrateReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("RouteMigrate"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RouteMigrate")
-		os.Exit(1)
+	if openShift {
+		if err = (&controllers.RouteMigrateReconciler{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("RouteMigrate"),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "RouteMigrate")
+			os.Exit(1)
+		}
 	}
 	if err = (&controllers.IngressMigrateReconciler{
 		Client: mgr.GetClient(),
