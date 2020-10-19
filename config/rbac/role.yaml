@@ -77,6 +77,26 @@ rules:
 - apiGroups:
   - dioscuri.amazee.io
   resources:
+  - hostmigrations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dioscuri.amazee.io
+  resources:
+  - hostmigrations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - dioscuri.amazee.io
+  resources:
   - ingressmigrates
   verbs:
   - create
