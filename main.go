@@ -28,6 +28,10 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	certv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
+	corev1 "k8s.io/api/core/v1"
+	networkv1beta1 "k8s.io/api/networking/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -42,15 +46,21 @@ func init() {
 	_ = dioscuriv1.AddToScheme(scheme)
 	_ = oappsv1.AddToScheme(scheme)
 	_ = routev1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
+	_ = networkv1beta1.AddToScheme(scheme)
+	_ = certv1alpha2.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
+	var openShift bool
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&openShift, "openshift", false,
+		"Enable routemigrates if using openshift.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
@@ -69,12 +79,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.RouteMigrateReconciler{
+	if openShift {
+		if err = (&controllers.RouteMigrateReconciler{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("RouteMigrate"),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "RouteMigrate")
+			os.Exit(1)
+		}
+	}
+	if err = (&controllers.IngressMigrateReconciler{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("RouteMigrate"),
+		Log:    ctrl.Log.WithName("controllers").WithName("IngressMigrate"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RouteMigrate")
+		setupLog.Error(err, "unable to create controller", "controller", "IngressMigrate")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

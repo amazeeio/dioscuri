@@ -1,0 +1,7 @@
+apiVersion: dioscuri.amazee.io/v1
+kind: IngressMigrate
+metadata:
+  name: ingressmigrate-sample
+spec:
+  # Add fields here
+  foo: bar
