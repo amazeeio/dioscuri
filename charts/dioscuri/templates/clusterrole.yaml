@@ -129,6 +129,26 @@ rules:
   - routes/custom-host
   verbs:
   - create
+- apiGroups:
+  - dioscuri.amazee.io
+  resources:
+  - hostmigrations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dioscuri.amazee.io
+  resources:
+  - hostmigrations/status
+  verbs:
+  - get
+  - patch
+  - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
