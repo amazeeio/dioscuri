@@ -3,7 +3,17 @@ entries:
   dioscuri:
   - apiVersion: v2
     appVersion: 0.1.6rc2
-    created: "2020-10-27T09:25:06.642444+11:00"
+    created: "2020-10-27T15:46:37.715905+11:00"
+    description: A Helm chart for dioscuri
+    digest: 057df5c8fcc93af6f11a6ff897380993afa7d19ecc4a22de693903759dab44b5
+    name: dioscuri
+    type: application
+    urls:
+    - dioscuri-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: 0.1.6rc2
+    created: "2020-10-27T15:46:37.715464+11:00"
     description: A Helm chart for dioscuri
     digest: 26dabd76ba6be80d2d2bb96be56a9072c9898171bea55db946b6f55156a83ea2
     name: dioscuri
@@ -13,7 +23,7 @@ entries:
     version: 0.1.1
   - apiVersion: v2
     appVersion: 0.1.6rc1
-    created: "2020-10-27T09:25:06.641795+11:00"
+    created: "2020-10-27T15:46:37.713529+11:00"
     description: A Helm chart for dioscuri
     digest: 061da4faee494f78731af48db46d3af8c1e388c0c292b91f5ebb00e3c4c16e84
     name: dioscuri
@@ -21,4 +31,4 @@ entries:
     urls:
     - dioscuri-0.1.0.tgz
     version: 0.1.0
-generated: "2020-10-27T09:25:06.638933+11:00"
+generated: "2020-10-27T15:46:37.712884+11:00"
