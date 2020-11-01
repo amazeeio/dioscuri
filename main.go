@@ -79,6 +79,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// @TODO: deprecate the RouteMigrate controller
 	if openShift {
 		if err = (&controllers.RouteMigrateReconciler{
 			Client: mgr.GetClient(),
@@ -89,12 +90,24 @@ func main() {
 			os.Exit(1)
 		}
 	}
+	// @TODO: deprecate the IngressMigrate controller
 	if err = (&controllers.IngressMigrateReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("IngressMigrate"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "IngressMigrate")
+		os.Exit(1)
+	}
+
+	// @TODO: the only one to remain should be the HostMigration controller
+	if err = (&controllers.HostMigrationReconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("HostMigration"),
+		Scheme:    mgr.GetScheme(),
+		Openshift: openShift,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HostMigration")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

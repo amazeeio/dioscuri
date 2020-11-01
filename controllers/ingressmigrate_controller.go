@@ -58,6 +58,7 @@ type MigratedIngress struct {
 // +kubebuilder:rbac:groups="*",resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups="cert-manager.io",resources=certificates,verbs=get;list;watch;create;update;patch;delete
 
+// Reconcile is the actual reconcilation process
 func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	opLog := r.Log.WithValues("ingressmigrate", req.NamespacedName)
@@ -405,6 +406,7 @@ func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager setups the controller with a manager
 func (r *IngressMigrateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dioscuriv1.IngressMigrate{}).

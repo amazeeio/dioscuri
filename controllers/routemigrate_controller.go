@@ -53,6 +53,7 @@ type MigratedRoutes struct {
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes/custom-host,verbs=create
 
+// Reconcile is the actual reconcilation process
 func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	opLog := r.Log.WithValues("routemigrate", req.NamespacedName)
@@ -248,6 +249,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager setups the controller with a manager
 func (r *RouteMigrateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dioscuriv1.RouteMigrate{}).

@@ -7,4 +7,7 @@ resources:
 - group: dioscuri
   kind: IngressMigrate
   version: v1
+- group: dioscuri
+  kind: HostMigration
+  version: v1
 version: "2"

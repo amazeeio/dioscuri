@@ -1,0 +1,7 @@
+apiVersion: dioscuri.amazee.io/v1
+kind: HostMigration
+metadata:
+  name: hostmigration-sample
+spec:
+  # Add fields here
+  foo: bar

@@ -62,3 +62,13 @@ func IngressContainsStatus(slice []dioscuriv1.IngressMigrateConditions, s dioscu
 	}
 	return false
 }
+
+// HostMigrationContainsStatus check if conditions contains a condition
+func HostMigrationContainsStatus(slice []dioscuriv1.HostMigrationConditions, s dioscuriv1.HostMigrationConditions) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
