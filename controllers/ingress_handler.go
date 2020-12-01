@@ -436,15 +436,15 @@ func (r *HostMigrationReconciler) individualIngressMigration(ctx context.Context
 
 // add ingress, and then remove the old one only if we successfully create the new one
 func (r *HostMigrationReconciler) migrateIngress(ctx context.Context, dioscuri *dioscuriv1.HostMigration, newIngress *networkv1beta1.Ingress, oldIngress *networkv1beta1.Ingress) error {
-	// add ingress
 	opLog := r.Log.WithValues("ingressmigrate", dioscuri.ObjectMeta.Namespace)
-	if err := r.addIngressIfNotExist(ctx, dioscuri, newIngress); err != nil {
-		return fmt.Errorf("Unable to create ingress %s in %s: %v", newIngress.ObjectMeta.Name, newIngress.ObjectMeta.Namespace, err)
-	}
 	// delete old ingress from the old namespace
 	opLog.Info(fmt.Sprintf("Removing old ingress %s in namespace %s", oldIngress.ObjectMeta.Name, oldIngress.ObjectMeta.Namespace))
 	if err := r.removeIngress(ctx, oldIngress); err != nil {
 		return fmt.Errorf("Unable to remove old ingress %s in %s: %v", oldIngress.ObjectMeta.Name, oldIngress.ObjectMeta.Namespace, err)
+	}
+	// add ingress
+	if err := r.addIngressIfNotExist(ctx, dioscuri, newIngress); err != nil {
+		return fmt.Errorf("Unable to create ingress %s in %s: %v", newIngress.ObjectMeta.Name, newIngress.ObjectMeta.Namespace, err)
 	}
 	return nil
 }
