@@ -383,7 +383,12 @@ func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		// registering our finalizer.
 		if !ContainsString(dioscuri.ObjectMeta.Finalizers, finalizerName) {
 			dioscuri.ObjectMeta.Finalizers = append(dioscuri.ObjectMeta.Finalizers, finalizerName)
-			if err := r.Update(ctx, &dioscuri); err != nil {
+			mergePatch, _ := json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"finalizers": dioscuri.ObjectMeta.Finalizers,
+				},
+			})
+			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -398,7 +403,12 @@ func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			}
 			// remove our finalizer from the list and update it.
 			dioscuri.ObjectMeta.Finalizers = RemoveString(dioscuri.ObjectMeta.Finalizers, finalizerName)
-			if err := r.Update(ctx, &dioscuri); err != nil {
+			mergePatch, _ := json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"finalizers": dioscuri.ObjectMeta.Finalizers,
+				},
+			})
+			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -418,7 +428,12 @@ func (r *IngressMigrateReconciler) deleteExternalResources(dioscuri *dioscuriv1.
 	return nil
 }
 
-func (r *IngressMigrateReconciler) checkServices(ctx context.Context, dioscuri *dioscuriv1.IngressMigrate, ingressList *networkv1beta1.IngressList, ingressToMigrate *networkv1beta1.IngressList, destinationNamespace string) error {
+func (r *IngressMigrateReconciler) checkServices(ctx context.Context,
+	dioscuri *dioscuriv1.IngressMigrate,
+	ingressList *networkv1beta1.IngressList,
+	ingressToMigrate *networkv1beta1.IngressList,
+	destinationNamespace string,
+) error {
 	// check service for ingress exists in destination namespace
 	for _, ingress := range ingressList.Items {
 		for _, host := range ingress.Spec.Rules {
@@ -444,7 +459,11 @@ func (r *IngressMigrateReconciler) checkServices(ctx context.Context, dioscuri *
 	return nil
 }
 
-func (r *IngressMigrateReconciler) checkSecrets(ctx context.Context, dioscuri *dioscuriv1.IngressMigrate, ingressList *networkv1beta1.IngressList, destinationNamespace string) error {
+func (r *IngressMigrateReconciler) checkSecrets(ctx context.Context,
+	dioscuri *dioscuriv1.IngressMigrate,
+	ingressList *networkv1beta1.IngressList,
+	destinationNamespace string,
+) error {
 	// check service for ingress exists in destination namespace
 	opLog := r.Log.WithValues("ingressmigrate", dioscuri.ObjectMeta.Namespace)
 	for _, ingress := range ingressList.Items {
@@ -470,7 +489,11 @@ func (r *IngressMigrateReconciler) checkSecrets(ctx context.Context, dioscuri *d
 	return nil
 }
 
-func (r *IngressMigrateReconciler) getIngressWithLabel(dioscuri *dioscuriv1.IngressMigrate, ingress *networkv1beta1.IngressList, namespace string, labels map[string]string) error {
+func (r *IngressMigrateReconciler) getIngressWithLabel(dioscuri *dioscuriv1.IngressMigrate,
+	ingress *networkv1beta1.IngressList,
+	namespace string,
+	labels map[string]string,
+) error {
 	// collect any ingress with specific labels
 	listOption := (&client.ListOptions{}).ApplyOptions([]client.ListOption{
 		client.InNamespace(namespace),
@@ -498,7 +521,12 @@ func (r *IngressMigrateReconciler) cleanUpAcmeChallenges(dioscuri *dioscuriv1.In
 	return nil
 }
 
-func (r *IngressMigrateReconciler) individualIngressMigration(ctx context.Context, dioscuri *dioscuriv1.IngressMigrate, ingress *networkv1beta1.Ingress, sourceNamespace string, destinationNamespace string) (*networkv1beta1.Ingress, error) {
+func (r *IngressMigrateReconciler) individualIngressMigration(ctx context.Context,
+	dioscuri *dioscuriv1.IngressMigrate,
+	ingress *networkv1beta1.Ingress,
+	sourceNamespace string,
+	destinationNamespace string,
+) (*networkv1beta1.Ingress, error) {
 	opLog := r.Log.WithValues("ingressmigrate", dioscuri.ObjectMeta.Namespace)
 	oldIngress := &networkv1beta1.Ingress{}
 	newIngress := &networkv1beta1.Ingress{}
@@ -534,7 +562,11 @@ func (r *IngressMigrateReconciler) individualIngressMigration(ctx context.Contex
 }
 
 // add ingress, and then remove the old one only if we successfully create the new one
-func (r *IngressMigrateReconciler) migrateIngress(ctx context.Context, dioscuri *dioscuriv1.IngressMigrate, newIngress *networkv1beta1.Ingress, oldIngress *networkv1beta1.Ingress) error {
+func (r *IngressMigrateReconciler) migrateIngress(ctx context.Context,
+	dioscuri *dioscuriv1.IngressMigrate,
+	newIngress *networkv1beta1.Ingress,
+	oldIngress *networkv1beta1.Ingress,
+) error {
 	opLog := r.Log.WithValues("ingressmigrate", dioscuri.ObjectMeta.Namespace)
 	// delete old ingress from the old namespace
 	opLog.Info(fmt.Sprintf("Removing old ingress %s in namespace %s", oldIngress.ObjectMeta.Name, oldIngress.ObjectMeta.Namespace))
@@ -626,14 +658,28 @@ func (r *IngressMigrateReconciler) removeIngress(ctx context.Context, ingress *n
 }
 
 // update status
-func (r *IngressMigrateReconciler) updateStatusCondition(ctx context.Context, dioscuri *dioscuriv1.IngressMigrate, condition dioscuriv1.IngressMigrateConditions, activeIngress []string, standbyIngress []string) error {
-	dioscuri.Spec.Ingress.ActiveIngress = strings.Join(activeIngress, ",")
-	dioscuri.Spec.Ingress.StandbyIngress = strings.Join(standbyIngress, ",")
+func (r *IngressMigrateReconciler) updateStatusCondition(ctx context.Context,
+	dioscuri *dioscuriv1.IngressMigrate,
+	condition dioscuriv1.IngressMigrateConditions,
+	activeIngress []string,
+	standbyIngress []string,
+) error {
 	// set the transition time
-	condition.LastTransitionTime = time.Now().Format(time.RFC3339)
+	condition.LastTransitionTime = time.Now().UTC().Format(time.RFC3339)
 	if !IngressContainsStatus(dioscuri.Status.Conditions, condition) {
 		dioscuri.Status.Conditions = append(dioscuri.Status.Conditions, condition)
-		if err := r.Update(ctx, dioscuri); err != nil {
+		mergePatch, _ := json.Marshal(map[string]interface{}{
+			"status": map[string]interface{}{
+				"conditions": dioscuri.Status.Conditions,
+			},
+			"spec": map[string]interface{}{
+				"ingress": map[string]string{
+					"activeIngress":  strings.Join(activeIngress, ","),
+					"standbyIngress": strings.Join(standbyIngress, ","),
+				},
+			},
+		})
+		if err := r.Patch(ctx, dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 			return fmt.Errorf("Unable to update status condition: %v", err)
 		}
 	}

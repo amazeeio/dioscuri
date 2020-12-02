@@ -93,7 +93,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, fmt.Errorf("Unable to patch routemigrate %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 			}
-			r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+			r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.RouteMigrateConditions{
 				Status:    "True",
 				Type:      "started",
 				Condition: "Started route migration",
@@ -118,7 +118,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 				opLog.Info(fmt.Sprintf("%v", err))
 			}
 			if err := r.cleanUpAcmeChallenges(&dioscuri, acmeSourceToDestination); err != nil {
-				r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+				r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.RouteMigrateConditions{
 					Status:    "True",
 					Type:      "failed",
 					Condition: fmt.Sprintf("%v", err),
@@ -130,7 +130,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 				opLog.Info(fmt.Sprintf("%v", err))
 			}
 			if err := r.cleanUpAcmeChallenges(&dioscuri, acmeDestinationToSource); err != nil {
-				r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+				r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.RouteMigrateConditions{
 					Status:    "True",
 					Type:      "failed",
 					Condition: fmt.Sprintf("%v", err),
@@ -163,7 +163,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 				// migrate these routes
 				newRoute, err := r.individualRouteMigration(&dioscuri, &route, sourceNamespace, destinationNamespace)
 				if err != nil {
-					r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+					r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.RouteMigrateConditions{
 						Status:    "True",
 						Type:      "failed",
 						Condition: fmt.Sprintf("%v", err),
@@ -183,7 +183,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 				// migrate these routes
 				newRoute, err := r.individualRouteMigration(&dioscuri, &route, destinationNamespace, sourceNamespace)
 				if err != nil {
-					r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+					r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.RouteMigrateConditions{
 						Status:    "True",
 						Type:      "failed",
 						Condition: fmt.Sprintf("%v", err),
@@ -207,7 +207,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			for _, migratedRoute := range migratedRoutes {
 				err := r.updateRoute(&dioscuri, migratedRoute.NewRoute, migratedRoute.OldRouteNamespace)
 				if err != nil {
-					r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+					r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.RouteMigrateConditions{
 						Status:    "True",
 						Type:      "failed",
 						Condition: fmt.Sprintf("%v", err),
@@ -215,7 +215,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 					return ctrl.Result{}, err
 				}
 			}
-			r.updateStatusCondition(&dioscuri, dioscuriv1.RouteMigrateConditions{
+			r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.RouteMigrateConditions{
 				Status:    "True",
 				Type:      "completed",
 				Condition: "Completed route migration",
@@ -226,7 +226,12 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		// registering our finalizer.
 		if !ContainsString(dioscuri.ObjectMeta.Finalizers, finalizerName) {
 			dioscuri.ObjectMeta.Finalizers = append(dioscuri.ObjectMeta.Finalizers, finalizerName)
-			if err := r.Update(ctx, &dioscuri); err != nil {
+			mergePatch, _ := json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"finalizers": dioscuri.ObjectMeta.Finalizers,
+				},
+			})
+			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -241,7 +246,12 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			}
 			// remove our finalizer from the list and update it.
 			dioscuri.ObjectMeta.Finalizers = RemoveString(dioscuri.ObjectMeta.Finalizers, finalizerName)
-			if err := r.Update(ctx, &dioscuri); err != nil {
+			mergePatch, _ := json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"finalizers": dioscuri.ObjectMeta.Finalizers,
+				},
+			})
+			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -261,7 +271,11 @@ func (r *RouteMigrateReconciler) deleteExternalResources(dioscuri *dioscuriv1.Ro
 	return nil
 }
 
-func (r *RouteMigrateReconciler) checkServices(dioscuri *dioscuriv1.RouteMigrate, routeList *routev1.RouteList, routesToMigrate *routev1.RouteList, destinationNamespace string) {
+func (r *RouteMigrateReconciler) checkServices(dioscuri *dioscuriv1.RouteMigrate,
+	routeList *routev1.RouteList,
+	routesToMigrate *routev1.RouteList,
+	destinationNamespace string,
+) {
 	// check service for route exists in destination namespace
 	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
 	for _, route := range routeList.Items {
@@ -276,7 +290,11 @@ func (r *RouteMigrateReconciler) checkServices(dioscuri *dioscuriv1.RouteMigrate
 	// return nil
 }
 
-func (r *RouteMigrateReconciler) getRoutesWithLabel(dioscuri *dioscuriv1.RouteMigrate, routes *routev1.RouteList, namespace string, labels map[string]string) error {
+func (r *RouteMigrateReconciler) getRoutesWithLabel(dioscuri *dioscuriv1.RouteMigrate,
+	routes *routev1.RouteList,
+	namespace string,
+	labels map[string]string,
+) error {
 	// collect any routes with specific labels
 	listOption := (&client.ListOptions{}).ApplyOptions([]client.ListOption{
 		client.InNamespace(namespace),
@@ -304,7 +322,11 @@ func (r *RouteMigrateReconciler) cleanUpAcmeChallenges(dioscuri *dioscuriv1.Rout
 	return nil
 }
 
-func (r *RouteMigrateReconciler) individualRouteMigration(dioscuri *dioscuriv1.RouteMigrate, route *routev1.Route, sourceNamespace string, destinationNamespace string) (*routev1.Route, error) {
+func (r *RouteMigrateReconciler) individualRouteMigration(dioscuri *dioscuriv1.RouteMigrate,
+	route *routev1.Route,
+	sourceNamespace string,
+	destinationNamespace string,
+) (*routev1.Route, error) {
 	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
 	oldRoute := &routev1.Route{}
 	newRoute := &routev1.Route{}
@@ -416,14 +438,28 @@ func (r *RouteMigrateReconciler) removeRoute(route *routev1.Route) error {
 }
 
 // update status
-func (r *RouteMigrateReconciler) updateStatusCondition(dioscuri *dioscuriv1.RouteMigrate, condition dioscuriv1.RouteMigrateConditions, activeRoutes []string, standbyRotues []string) error {
-	dioscuri.Spec.Routes.ActiveRoutes = strings.Join(activeRoutes, ",")
-	dioscuri.Spec.Routes.StandbyRoutes = strings.Join(standbyRotues, ",")
+func (r *RouteMigrateReconciler) updateStatusCondition(ctx context.Context,
+	dioscuri *dioscuriv1.RouteMigrate,
+	condition dioscuriv1.RouteMigrateConditions,
+	activeRoutes []string,
+	standbyRotues []string,
+) error {
 	// set the transition time
-	condition.LastTransitionTime = time.Now().Format(time.RFC3339)
+	condition.LastTransitionTime = time.Now().UTC().Format(time.RFC3339)
 	if !RouteContainsStatus(dioscuri.Status.Conditions, condition) {
 		dioscuri.Status.Conditions = append(dioscuri.Status.Conditions, condition)
-		if err := r.Update(context.Background(), dioscuri); err != nil {
+		mergePatch, _ := json.Marshal(map[string]interface{}{
+			"status": map[string]interface{}{
+				"conditions": dioscuri.Status.Conditions,
+			},
+			"spec": map[string]interface{}{
+				"routes": map[string]string{
+					"activeRoutes":  strings.Join(activeRoutes, ","),
+					"standbyRoutes": strings.Join(standbyRotues, ","),
+				},
+			},
+		})
+		if err := r.Patch(ctx, dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 			return fmt.Errorf("Unable to update status condition: %v", err)
 		}
 	}

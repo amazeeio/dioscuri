@@ -17,9 +17,11 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -87,7 +89,12 @@ func (r *HostMigrationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		// registering our finalizer.
 		if !ContainsString(dioscuri.ObjectMeta.Finalizers, finalizerName) {
 			dioscuri.ObjectMeta.Finalizers = append(dioscuri.ObjectMeta.Finalizers, finalizerName)
-			if err := r.Update(ctx, &dioscuri); err != nil {
+			mergePatch, _ := json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"finalizers": dioscuri.ObjectMeta.Finalizers,
+				},
+			})
+			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -102,7 +109,12 @@ func (r *HostMigrationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			}
 			// remove our finalizer from the list and update it.
 			dioscuri.ObjectMeta.Finalizers = RemoveString(dioscuri.ObjectMeta.Finalizers, finalizerName)
-			if err := r.Update(ctx, &dioscuri); err != nil {
+			mergePatch, _ := json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"finalizers": dioscuri.ObjectMeta.Finalizers,
+				},
+			})
+			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}

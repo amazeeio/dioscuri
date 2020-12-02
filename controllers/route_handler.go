@@ -35,7 +35,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 	if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 		return ctrl.Result{}, fmt.Errorf("Unable to patch routemigrate %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 	}
-	r.updateStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
+	r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
 		Status:    "True",
 		Type:      "started",
 		Condition: "Started route migration",
@@ -60,7 +60,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 		opLog.Info(fmt.Sprintf("%v", err))
 	}
 	if err := r.cleanUpAcmeChallenges(&dioscuri, acmeSourceToDestination); err != nil {
-		r.updateStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
+		r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
 			Status:    "True",
 			Type:      "failed",
 			Condition: fmt.Sprintf("%v", err),
@@ -72,7 +72,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 		opLog.Info(fmt.Sprintf("%v", err))
 	}
 	if err := r.cleanUpAcmeChallenges(&dioscuri, acmeDestinationToSource); err != nil {
-		r.updateStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
+		r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
 			Status:    "True",
 			Type:      "failed",
 			Condition: fmt.Sprintf("%v", err),
@@ -105,7 +105,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 		// migrate these routes
 		newRoute, err := r.individualRouteMigration(&dioscuri, &route, sourceNamespace, destinationNamespace)
 		if err != nil {
-			r.updateStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
+			r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
 				Status:    "True",
 				Type:      "failed",
 				Condition: fmt.Sprintf("%v", err),
@@ -125,7 +125,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 		// migrate these routes
 		newRoute, err := r.individualRouteMigration(&dioscuri, &route, destinationNamespace, sourceNamespace)
 		if err != nil {
-			r.updateStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
+			r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
 				Status:    "True",
 				Type:      "failed",
 				Condition: fmt.Sprintf("%v", err),
@@ -149,7 +149,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 	for _, migratedRoute := range migratedRoutes {
 		err := r.updateRoute(&dioscuri, migratedRoute.NewRoute, migratedRoute.OldRouteNamespace)
 		if err != nil {
-			r.updateStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
+			r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
 				Status:    "True",
 				Type:      "failed",
 				Condition: fmt.Sprintf("%v", err),
@@ -157,7 +157,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 			return ctrl.Result{}, err
 		}
 	}
-	r.updateStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
+	r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
 		Status:    "True",
 		Type:      "completed",
 		Condition: "Completed route migration",
@@ -170,7 +170,11 @@ func (r *HostMigrationReconciler) deleteExternalResources(dioscuri *dioscuriv1.H
 	return nil
 }
 
-func (r *HostMigrationReconciler) checkServices(dioscuri *dioscuriv1.HostMigration, routeList *routev1.RouteList, routesToMigrate *routev1.RouteList, destinationNamespace string) {
+func (r *HostMigrationReconciler) checkServices(dioscuri *dioscuriv1.HostMigration,
+	routeList *routev1.RouteList,
+	routesToMigrate *routev1.RouteList,
+	destinationNamespace string,
+) {
 	// check service for route exists in destination namespace
 	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
 	for _, route := range routeList.Items {
@@ -185,7 +189,11 @@ func (r *HostMigrationReconciler) checkServices(dioscuri *dioscuriv1.HostMigrati
 	// return nil
 }
 
-func (r *HostMigrationReconciler) getRoutesWithLabel(dioscuri *dioscuriv1.HostMigration, routes *routev1.RouteList, namespace string, labels map[string]string) error {
+func (r *HostMigrationReconciler) getRoutesWithLabel(dioscuri *dioscuriv1.HostMigration,
+	routes *routev1.RouteList,
+	namespace string,
+	labels map[string]string,
+) error {
 	// collect any routes with specific labels
 	listOption := (&client.ListOptions{}).ApplyOptions([]client.ListOption{
 		client.InNamespace(namespace),
@@ -213,7 +221,11 @@ func (r *HostMigrationReconciler) cleanUpAcmeChallenges(dioscuri *dioscuriv1.Hos
 	return nil
 }
 
-func (r *HostMigrationReconciler) individualRouteMigration(dioscuri *dioscuriv1.HostMigration, route *routev1.Route, sourceNamespace string, destinationNamespace string) (*routev1.Route, error) {
+func (r *HostMigrationReconciler) individualRouteMigration(dioscuri *dioscuriv1.HostMigration,
+	route *routev1.Route,
+	sourceNamespace string,
+	destinationNamespace string,
+) (*routev1.Route, error) {
 	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
 	oldRoute := &routev1.Route{}
 	newRoute := &routev1.Route{}
@@ -325,14 +337,28 @@ func (r *HostMigrationReconciler) removeRoute(route *routev1.Route) error {
 }
 
 // update status
-func (r *HostMigrationReconciler) updateStatusCondition(dioscuri *dioscuriv1.HostMigration, condition dioscuriv1.HostMigrationConditions, activeRoutes []string, standbyRotues []string) error {
-	dioscuri.Spec.Hosts.ActiveHosts = strings.Join(activeRoutes, ",")
-	dioscuri.Spec.Hosts.StandbyHosts = strings.Join(standbyRotues, ",")
+func (r *HostMigrationReconciler) updateStatusCondition(ctx context.Context,
+	dioscuri *dioscuriv1.HostMigration,
+	condition dioscuriv1.HostMigrationConditions,
+	activeRoutes []string,
+	standbyRotues []string,
+) error {
 	// set the transition time
-	condition.LastTransitionTime = time.Now().Format(time.RFC3339)
+	condition.LastTransitionTime = time.Now().UTC().Format(time.RFC3339)
 	if !HostMigrationContainsStatus(dioscuri.Status.Conditions, condition) {
 		dioscuri.Status.Conditions = append(dioscuri.Status.Conditions, condition)
-		if err := r.Update(context.Background(), dioscuri); err != nil {
+		mergePatch, _ := json.Marshal(map[string]interface{}{
+			"status": map[string]interface{}{
+				"conditions": dioscuri.Status.Conditions,
+			},
+			"spec": map[string]interface{}{
+				"hosts": map[string]string{
+					"activeHosts":  strings.Join(activeRoutes, ","),
+					"standbyHosts": strings.Join(standbyRotues, ","),
+				},
+			},
+		})
+		if err := r.Patch(ctx, dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 			return fmt.Errorf("Unable to update status condition: %v", err)
 		}
 	}
