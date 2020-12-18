@@ -145,7 +145,7 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 		&dioscuri,
 		ingressDestinationToSource,
 		migrateDestinationToSource,
-		destinationNamespace,
+		sourceNamespace,
 	); err != nil {
 		r.updateKubernetesStatusCondition(ctx,
 			&dioscuri,
@@ -180,7 +180,7 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 	if err := r.checkSecrets(ctx,
 		&dioscuri,
 		ingressDestinationToSource,
-		destinationNamespace,
+		sourceNamespace,
 	); err != nil {
 		r.updateKubernetesStatusCondition(ctx,
 			&dioscuri,

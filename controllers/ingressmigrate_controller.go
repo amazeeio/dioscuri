@@ -206,7 +206,7 @@ func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				&dioscuri,
 				ingressDestinationToSource,
 				migrateDestinationToSource,
-				destinationNamespace,
+				sourceNamespace,
 			); err != nil {
 				r.updateStatusCondition(ctx,
 					&dioscuri,
@@ -241,7 +241,7 @@ func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			if err := r.checkSecrets(ctx,
 				&dioscuri,
 				ingressDestinationToSource,
-				destinationNamespace,
+				sourceNamespace,
 			); err != nil {
 				r.updateStatusCondition(ctx,
 					&dioscuri,
