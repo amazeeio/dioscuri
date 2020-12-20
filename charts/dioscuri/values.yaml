@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: amazeeio/dioscuri
-  tag: v0.1.7
+  tag: v0.1.8
   pullPolicy: IfNotPresent
 
 kubeRbacProxy:
