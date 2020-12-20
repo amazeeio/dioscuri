@@ -96,7 +96,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 	migrateSourceToDestination := &routev1.RouteList{}
 	r.checkServices(&dioscuri, routesSourceToDestination, migrateSourceToDestination, destinationNamespace)
 	migrateDestinationToSource := &routev1.RouteList{}
-	r.checkServices(&dioscuri, routesDestinationToSource, migrateDestinationToSource, destinationNamespace)
+	r.checkServices(&dioscuri, routesDestinationToSource, migrateDestinationToSource, sourceNamespace)
 	// END CHECKING SERVICES SECTION
 	// START MIGRATING ROUTES SECTION
 	// actually start the migrations here
