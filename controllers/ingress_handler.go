@@ -241,7 +241,7 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 			ingressScheme = "https://"
 		}
 		for _, rule := range ingress.Spec.Rules {
-			activeMigratedIngress = append(activeMigratedIngress, fmt.Sprintf("%s%s", ingressScheme, rule.Host))
+			standbyMigratedIngress = append(standbyMigratedIngress, fmt.Sprintf("%s%s", ingressScheme, rule.Host))
 		}
 	}
 	for _, ingress := range migrateDestinationToSource.Items {
@@ -285,7 +285,7 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 			ingressScheme = "https://"
 		}
 		for _, rule := range ingress.Spec.Rules {
-			standbyMigratedIngress = append(standbyMigratedIngress, fmt.Sprintf("%s%s", ingressScheme, rule.Host))
+			activeMigratedIngress = append(activeMigratedIngress, fmt.Sprintf("%s%s", ingressScheme, rule.Host))
 		}
 	}
 	// wait a sec before updating the ingress
