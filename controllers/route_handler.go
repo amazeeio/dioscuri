@@ -119,7 +119,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 				routeScheme = "https://"
 			}
 		}
-		activeMigratedRoutes = append(activeMigratedRoutes, fmt.Sprintf("%s%s", routeScheme, route.Spec.Host))
+		standbyMigratedRoutes = append(standbyMigratedRoutes, fmt.Sprintf("%s%s", routeScheme, route.Spec.Host))
 	}
 	for _, route := range migrateDestinationToSource.Items {
 		// migrate these routes
@@ -140,7 +140,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 				routeScheme = "https://"
 			}
 		}
-		standbyMigratedRoutes = append(standbyMigratedRoutes, fmt.Sprintf("%s%s", routeScheme, route.Spec.Host))
+		activeMigratedRoutes = append(activeMigratedRoutes, fmt.Sprintf("%s%s", routeScheme, route.Spec.Host))
 	}
 	// wait a sec before updating the routes
 	checkInterval := time.Duration(1)
