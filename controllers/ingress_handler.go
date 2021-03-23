@@ -549,7 +549,8 @@ func (r *HostMigrationReconciler) removeIngress(ctx context.Context, ingress *ne
 		return fmt.Errorf("Unable to delete ingress %s in %s: %v", ingress.ObjectMeta.Name, ingress.ObjectMeta.Namespace, err)
 	}
 	// check that the ingress is actually deleted before continuing
-	try.MaxRetries = 12
+	opLog.Info(fmt.Sprintf("Check ingress %s in %s deleted", ingress.ObjectMeta.Name, ingress.ObjectMeta.Namespace))
+	try.MaxRetries = 60
 	err := try.Do(func(attempt int) (bool, error) {
 		var ingressErr error
 		err := r.Get(ctx, types.NamespacedName{
@@ -565,9 +566,9 @@ func (r *HostMigrationReconciler) removeIngress(ctx context.Context, ingress *ne
 			msg := fmt.Sprintf("Ingress %s in %s still exists", ingress.ObjectMeta.Name, ingress.ObjectMeta.Namespace)
 			ingressErr = fmt.Errorf("%s: %v", msg, err)
 			opLog.Info(msg)
-			time.Sleep(5 * time.Second)
 		}
-		return attempt < 12, ingressErr
+		time.Sleep(1 * time.Second)
+		return attempt < 60, ingressErr
 	})
 	if err != nil {
 		// if the ingress still exists, return the error
