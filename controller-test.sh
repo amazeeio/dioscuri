@@ -53,12 +53,11 @@ kubectl config use-context kind-${KIND_NAME}
 NUM_PODS=$(kubectl -n ingress-nginx get pods | grep -ow "Running"| wc -l |  tr  -d " ")
 if [ $NUM_PODS -ne 1 ]; then
     echo -e "${GREEN}===>${NOCOLOR} Install ingress-nginx"
+    helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
     kubectl create namespace ingress-nginx
     helm upgrade --install -n ingress-nginx ingress-nginx ingress-nginx/ingress-nginx -f test-resources/ingress-nginx-values.yaml
-    echo -e "${GREEN}===>${NOCOLOR} Wait for ingress-nginx to become ready"
-    # sleep 10 #long sleep to give ingress to start up properly
 else
-    echo -e "${GREEN}===>${NOCOLOR} Ingress-nginx is ready"
+    echo -e "${GREEN}===>${NOCOLOR} Ingress-nginx is installed"
 fi
 
 CHECK_COUNTER=1
