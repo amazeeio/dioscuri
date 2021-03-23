@@ -54,3 +54,13 @@ jobs:
             export PATH=$PATH:/usr/local/go/bin
             export GOPATH=$HOME/go
             make controller-test
+workflows:
+  version: 2
+  run-test:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: gh-pages
+            tags:
+              only: /^\d+\.\d+\.\d+$/
