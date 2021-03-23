@@ -33,7 +33,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 		return ctrl.Result{}, fmt.Errorf("Unable to create mergepatch for %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 	}
 	if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
-		return ctrl.Result{}, fmt.Errorf("Unable to patch routemigrate %s, error was: %v", dioscuri.ObjectMeta.Name, err)
+		return ctrl.Result{}, fmt.Errorf("Unable to patch hostmigration %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 	}
 	r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
 		Status:    "True",
@@ -176,7 +176,7 @@ func (r *HostMigrationReconciler) checkServices(dioscuri *dioscuriv1.HostMigrati
 	destinationNamespace string,
 ) {
 	// check service for route exists in destination namespace
-	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
+	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	for _, route := range routeList.Items {
 		service := &corev1.Service{}
 		err := r.Get(context.TODO(), types.NamespacedName{Namespace: destinationNamespace, Name: route.Spec.To.Name}, service)
@@ -207,7 +207,7 @@ func (r *HostMigrationReconciler) getRoutesWithLabel(dioscuri *dioscuriv1.HostMi
 
 func (r *HostMigrationReconciler) cleanUpAcmeChallenges(dioscuri *dioscuriv1.HostMigration, routeList *routev1.RouteList) error {
 	// we need to ensure there are no stale or pending acme challenges for any routes we are going to
-	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
+	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	for _, route := range routeList.Items {
 		opLog.Info(fmt.Sprintf("Found acme-challenge for %s, proceeding to delete the pending challenge before moving the route", route.Spec.Host))
 		// deep copy the route
@@ -226,7 +226,7 @@ func (r *HostMigrationReconciler) individualRouteMigration(dioscuri *dioscuriv1.
 	sourceNamespace string,
 	destinationNamespace string,
 ) (*routev1.Route, error) {
-	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
+	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	oldRoute := &routev1.Route{}
 	newRoute := &routev1.Route{}
 	err := r.Get(context.TODO(), types.NamespacedName{Namespace: sourceNamespace, Name: route.ObjectMeta.Name}, oldRoute)
@@ -255,7 +255,7 @@ func (r *HostMigrationReconciler) individualRouteMigration(dioscuri *dioscuriv1.
 // add routes, and then remove the old one only if we successfully create the new one
 func (r *HostMigrationReconciler) migrateRoute(dioscuri *dioscuriv1.HostMigration, newRoute *routev1.Route, oldRoute *routev1.Route) error {
 	// add route
-	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
+	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	if err := r.addRouteIfNotExist(dioscuri, newRoute); err != nil {
 		return fmt.Errorf("Unable to create route %s in %s: %v", newRoute.ObjectMeta.Name, newRoute.ObjectMeta.Namespace, err)
 	}
@@ -268,7 +268,7 @@ func (r *HostMigrationReconciler) migrateRoute(dioscuri *dioscuriv1.HostMigratio
 }
 
 func (r *HostMigrationReconciler) updateRoute(dioscuri *dioscuriv1.HostMigration, newRoute *routev1.Route, oldRouteNamespace string) error {
-	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
+	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	// check a few times to make sure the old route no longer exists
 	for i := 0; i < 10; i++ {
 		oldRouteExists := r.checkOldRouteExists(dioscuri, newRoute, oldRouteNamespace)
@@ -300,7 +300,7 @@ func (r *HostMigrationReconciler) updateRoute(dioscuri *dioscuriv1.HostMigration
 // add any routes if they don't already exist in the new namespace
 func (r *HostMigrationReconciler) addRouteIfNotExist(dioscuri *dioscuriv1.HostMigration, route *routev1.Route) error {
 	// add route
-	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
+	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	opLog.Info(fmt.Sprintf("Getting existing route %s in namespace %s", route.ObjectMeta.Name, route.ObjectMeta.Namespace))
 	err := r.Get(context.TODO(), types.NamespacedName{Namespace: route.ObjectMeta.Namespace, Name: route.ObjectMeta.Name}, route)
 	if err != nil {
@@ -314,7 +314,7 @@ func (r *HostMigrationReconciler) addRouteIfNotExist(dioscuri *dioscuriv1.HostMi
 }
 
 func (r *HostMigrationReconciler) checkOldRouteExists(dioscuri *dioscuriv1.HostMigration, route *routev1.Route, sourceNamespace string) bool {
-	opLog := r.Log.WithValues("routemigrate", dioscuri.ObjectMeta.Namespace)
+	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	opLog.Info(fmt.Sprintf("Checking route %s is not in source namespace %s", route.ObjectMeta.Name, sourceNamespace))
 	getRoute := &routev1.Route{}
 	err := r.Get(context.TODO(), types.NamespacedName{Namespace: sourceNamespace, Name: route.ObjectMeta.Name}, getRoute)

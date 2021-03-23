@@ -1,0 +1,13 @@
+apiVersion: dioscuri.amazee.io/v1
+kind: HostMigration
+metadata:
+  name: active-standby
+  namespace: test-ns2
+  annotations:
+    dioscuri.amazee.io/migrate: 'true'
+    # dioscuri.amazee.io/post-migrate-resource-annotations: >-
+    #   [{"name":"fastly.amazee.io/delete-external-resources","value":"true"},{"name":"fastly.amazee.io/watch","value":"true"},{"name":"fastly.amazee.io/paused","value":"false"}]
+    # dioscuri.amazee.io/pre-migrate-resource-annotations: >-
+    #   [{"name":"fastly.amazee.io/delete-external-resources","value":"false"},{"name":"fastly.amazee.io/watch","value":"false"},{"name":"fastly.amazee.io/paused","value":"true"}]
+spec:
+  destinationNamespace: test-ns1

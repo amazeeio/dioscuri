@@ -25,6 +25,7 @@ import (
 	dioscuriv1 "github.com/amazeeio/dioscuri/api/v1"
 	"github.com/go-logr/logr"
 	certv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
+	"gopkg.in/matryer/try.v1"
 	corev1 "k8s.io/api/core/v1"
 	networkv1beta1 "k8s.io/api/networking/v1beta1"
 
@@ -571,7 +572,7 @@ func (r *IngressMigrateReconciler) migrateIngress(ctx context.Context,
 	// delete old ingress from the old namespace
 	opLog.Info(fmt.Sprintf("Removing old ingress %s in namespace %s", oldIngress.ObjectMeta.Name, oldIngress.ObjectMeta.Namespace))
 	if err := r.removeIngress(ctx, oldIngress); err != nil {
-		return fmt.Errorf("Unable to remove old ingress %s in %s: %v", oldIngress.ObjectMeta.Name, oldIngress.ObjectMeta.Namespace, err)
+		return err
 	}
 	// add ingress
 	if err := r.addIngressIfNotExist(ctx, dioscuri, newIngress); err != nil {
@@ -650,9 +651,35 @@ func (r *IngressMigrateReconciler) checkOldIngressExists(dioscuri *dioscuriv1.In
 
 // remove a given ingress
 func (r *IngressMigrateReconciler) removeIngress(ctx context.Context, ingress *networkv1beta1.Ingress) error {
+	opLog := r.Log.WithValues("ingressmigrate", ingress.ObjectMeta.Namespace)
 	// remove ingress
 	if err := r.Delete(ctx, ingress); err != nil {
 		return fmt.Errorf("Unable to delete ingress %s in %s: %v", ingress.ObjectMeta.Name, ingress.ObjectMeta.Namespace, err)
+	}
+	// check that the ingress is actually deleted before continuing
+	opLog.Info(fmt.Sprintf("Check ingress %s in %s deleted", ingress.ObjectMeta.Name, ingress.ObjectMeta.Namespace))
+	try.MaxRetries = 60
+	err := try.Do(func(attempt int) (bool, error) {
+		var ingressErr error
+		err := r.Get(ctx, types.NamespacedName{
+			Namespace: ingress.ObjectMeta.Namespace,
+			Name:      ingress.ObjectMeta.Name,
+		}, ingress)
+		if err != nil {
+			// the ingress doesn't exist anymore, so exit the retry
+			ingressErr = nil
+			opLog.Info(fmt.Sprintf("Ingress %s in %s deleted", ingress.ObjectMeta.Name, ingress.ObjectMeta.Namespace))
+		} else {
+			// if the ingress still exists wait 5 seconds before trying again
+			msg := fmt.Sprintf("Ingress %s in %s still exists", ingress.ObjectMeta.Name, ingress.ObjectMeta.Namespace)
+			ingressErr = fmt.Errorf("%s: %v", msg, err)
+			opLog.Info(msg)
+		}
+		time.Sleep(1 * time.Second)
+		return attempt < 60, ingressErr
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }

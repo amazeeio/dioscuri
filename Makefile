@@ -78,3 +78,9 @@ CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
+
+controller-test:
+	./controller-test.sh
+
+local-circle:
+	circleci build -v $(shell pwd):/workdir
