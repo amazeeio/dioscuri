@@ -18,6 +18,8 @@ check_dioscuri_log () {
 }
 
 tear_down () {
+    echo -e "${GREEN}==>${NOCOLOR} Controller logs"
+    check_dioscuri_log
     echo -e "${GREEN}============= TEAR DOWN =============${NOCOLOR}"
     kind delete cluster --name ${KIND_NAME}
 }

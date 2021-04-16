@@ -19,6 +19,39 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// var preMigrationRules = `[
+// 	{
+// 		"if": [
+// 			{"name": "fastly.amazee.io/paused", "value": "false", "operator": "equals"},
+// 			{"name": "fastly.amazee.io/watch", "value": "true", "operator": "equals"}
+// 		],
+// 		"then": [
+// 			{"name": "fastly.amazee.io/paused", "value": "true", "operator": "equals"},
+// 			{"name": "fastly.amazee.io/watch", "value": "false", "operator": "equals"},
+// 			{"name": "fastly.amazee.io/delete-external-resources", "value": "false", "operator": "equals"},
+// 			{"name": "fastly.amazee.io/backup-paused", "value": "fastly.amazee.io/paused", "operator": "source"},
+// 			{"name": "fastly.amazee.io/backup-watch", "value": "fastly.amazee.io/watch", "operator": "source"}
+// 		]
+// 	}
+// ]`
+
+// var postMigrationRules = `[
+// 	{
+// 		"if": [
+// 		  {"name": "fastly.amazee.io/paused", "value": "true", "operator": "equals"},
+// 		  {"name": "fastly.amazee.io/watch", "value": "false", "operator": "equals"}
+// 		],
+// 		"then": [
+// 		  {"name": "fastly.amazee.io/delete-external-resources", "operator": "delete"},
+// 		  {"name": "fastly.amazee.io/backup-delete-external-resources", "operator": "delete"},
+// 		  {"name": "fastly.amazee.io/backup-paused", "operator": "delete"},
+// 		  {"name": "fastly.amazee.io/backup-watch", "operator": "delete"},
+// 		  {"name": "fastly.amazee.io/paused", "value": "fastly.amazee.io/backup-paused", "operator": "source"},
+// 		  {"name": "fastly.amazee.io/watch", "value": "fastly.amazee.io/backup-watch", "operator": "source"}
+// 		]
+// 	}
+// ]`
+
 // KubernetesHandler handles doing ingress migrations in a kubernetes cluster
 func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog logr.Logger, dioscuri dioscuriv1.HostMigration) (ctrl.Result, error) {
 	var activeMigratedIngress []string
@@ -105,7 +138,8 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 	migrateLabels := map[string]string{"dioscuri.amazee.io/migrate": "true"}
 	// get the ingress from the source namespace, these will get moved to the destination namespace
 	ingressSourceToDestination := &networkv1beta1.IngressList{}
-	if err := r.getIngressWithLabel(&dioscuri,
+	if err := r.getIngressWithLabel(ctx,
+		&dioscuri,
 		ingressSourceToDestination,
 		sourceNamespace,
 		migrateLabels,
@@ -114,7 +148,8 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 	}
 	// get the ingress from the destination namespace, these will get moved to the source namespace
 	ingressDestinationToSource := &networkv1beta1.IngressList{}
-	if err := r.getIngressWithLabel(&dioscuri,
+	if err := r.getIngressWithLabel(ctx,
+		&dioscuri,
 		ingressDestinationToSource,
 		destinationNamespace,
 		migrateLabels,
@@ -200,17 +235,109 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 	// START MIGRATING ROUTES SECTION
 	// actually start the migrations here
 	var migratedIngress []MigratedIngress
-	for _, ingress := range migrateSourceToDestination.Items {
-		// before we move anything we may need to modify some annotations
-		// patch all the annotations we are given in the `pre-migrate-resource-annotations`
-		// with the provided values
-		if err := r.migrateResourcePatch(ctx,
-			ingress,
-			dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/pre-migrate-resource-annotations"],
-		); err != nil {
-			return ctrl.Result{}, err
+	/*
+		do any pre-migration resource annotation adjustments with our rulesets
+		this allows us to define a ruleset that can modify annotations on resources
+		and only modifies if the conditions are met
+	*/
+	if _, ok := dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/pre-migrate-annotation-rules"]; ok {
+		opLog.Info(fmt.Sprintf("Pre-migration annotation ruleset exists, patching resources as required"))
+		for _, ingress := range migrateSourceToDestination.Items {
+			// before we move anything we may need to modify some annotations
+			// patch all the annotations we are given in the `pre-migrate-resource-annotations`
+			// with the provided values
+			if err := r.prePostMigrationRules(ctx,
+				ingress,
+				dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/pre-migrate-annotation-rules"],
+			); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
-
+		for _, ingress := range migrateDestinationToSource.Items {
+			// before we move anything we may need to modify some annotations
+			// patch all the annotations we are given in the `pre-migrate-resource-annotations`
+			// with the provided values
+			if err := r.prePostMigrationRules(ctx,
+				ingress,
+				dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/pre-migrate-annotation-rules"],
+			); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
+	/*
+		since the api was patched, all the resources will be old, collect them again
+	*/
+	time.Sleep(time.Duration(1) * time.Second)
+	ingressSourceToDestination = &networkv1beta1.IngressList{}
+	if err := r.getIngressWithLabel(ctx,
+		&dioscuri,
+		ingressSourceToDestination,
+		sourceNamespace,
+		migrateLabels,
+	); err != nil {
+		opLog.Info(fmt.Sprintf("%v", err))
+	}
+	// get the ingress from the destination namespace, these will get moved to the source namespace
+	ingressDestinationToSource = &networkv1beta1.IngressList{}
+	if err := r.getIngressWithLabel(ctx,
+		&dioscuri,
+		ingressDestinationToSource,
+		destinationNamespace,
+		migrateLabels,
+	); err != nil {
+		opLog.Info(fmt.Sprintf("%v", err))
+	}
+	migrateSourceToDestination = &networkv1beta1.IngressList{}
+	if err := r.checkKubernetesServices(ctx,
+		&dioscuri,
+		ingressSourceToDestination,
+		migrateSourceToDestination,
+		destinationNamespace,
+	); err != nil {
+		r.updateKubernetesStatusCondition(ctx,
+			&dioscuri,
+			dioscuriv1.HostMigrationConditions{
+				Status:    "True",
+				Type:      "failed",
+				Condition: fmt.Sprintf("%v", err),
+			},
+			activeMigratedIngress,
+			standbyMigratedIngress,
+		)
+		return ctrl.Result{}, nil
+	}
+	migrateDestinationToSource = &networkv1beta1.IngressList{}
+	if err := r.checkKubernetesServices(ctx,
+		&dioscuri,
+		ingressDestinationToSource,
+		migrateDestinationToSource,
+		sourceNamespace,
+	); err != nil {
+		r.updateKubernetesStatusCondition(ctx,
+			&dioscuri,
+			dioscuriv1.HostMigrationConditions{
+				Status:    "True",
+				Type:      "failed",
+				Condition: fmt.Sprintf("%v", err),
+			},
+			activeMigratedIngress,
+			standbyMigratedIngress,
+		)
+		return ctrl.Result{}, nil
+	}
+	// for _, ingress := range migrateSourceToDestination.Items {
+	// 	fmt.Println(ingress.ObjectMeta.Name, ingress.ObjectMeta.Annotations)
+	// }
+	// for _, ingress := range migrateDestinationToSource.Items {
+	// 	fmt.Println(ingress.ObjectMeta.Name, ingress.ObjectMeta.Annotations)
+	// }
+	/*
+		now do the actual migrations (deletion and re-creation)
+	*/
+	time.Sleep(time.Duration(1) * time.Second)
+	opLog.Info(fmt.Sprintf("Performing the migration of resources now"))
+	for _, ingress := range migrateSourceToDestination.Items {
 		// migrate these ingress
 		newIngress, err := r.individualIngressMigration(ctx,
 			&dioscuri,
@@ -246,15 +373,6 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 		}
 	}
 	for _, ingress := range migrateDestinationToSource.Items {
-		// before we move anything we may need to modify some annotations
-		// patch all the annotations we are given in the `pre-migrate-resource-annotations`
-		// with the provided values
-		if err := r.migrateResourcePatch(ctx,
-			ingress,
-			dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/pre-migrate-resource-annotations"],
-		); err != nil {
-			return ctrl.Result{}, err
-		}
 		// migrate these ingress
 		newIngress, err := r.individualIngressMigration(ctx,
 			&dioscuri,
@@ -294,13 +412,17 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 	time.Sleep(checkInterval * time.Second)
 	// once we move all the ingress, we have to go through and do a final update on them to make sure any `HostAlreadyClaimed` warning/errors go away
 	for _, migratedIngress := range migratedIngress {
-		// // we may need to move some resources after we move the ingress, we can define their annotations here
-
+		// we may need to move some resources after we move the ingress, we can define the rules for them in
+		// an annotation `dioscuri.amazee.io/pre-migrate-annotation-rules` and process them
+		var postMigrationRules string
+		if _, ok := dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/pre-migrate-annotation-rules"]; ok {
+			postMigrationRules = dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/post-migrate-annotation-rules"]
+		}
 		err := r.updateIngress(ctx,
 			&dioscuri,
 			migratedIngress.NewIngress,
 			migratedIngress.OldIngressNamespace,
-			dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/post-migrate-resource-annotations"],
+			postMigrationRules,
 		)
 		if err != nil {
 			r.updateKubernetesStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
@@ -311,7 +433,73 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 			return ctrl.Result{}, err
 		}
 	}
-
+	/*
+		get the ingress objects again, since they've been updated
+	*/
+	// time.Sleep(time.Duration(1) * time.Second)
+	// ingressSourceToDestination = &networkv1beta1.IngressList{}
+	// if err := r.getIngressWithLabel(ctx,
+	// 	&dioscuri,
+	// 	ingressSourceToDestination,
+	// 	sourceNamespace,
+	// 	migrateLabels,
+	// ); err != nil {
+	// 	opLog.Info(fmt.Sprintf("%v", err))
+	// }
+	// // get the ingress from the destination namespace, these will get moved to the source namespace
+	// ingressDestinationToSource = &networkv1beta1.IngressList{}
+	// if err := r.getIngressWithLabel(ctx,
+	// 	&dioscuri,
+	// 	ingressDestinationToSource,
+	// 	destinationNamespace,
+	// 	migrateLabels,
+	// ); err != nil {
+	// 	opLog.Info(fmt.Sprintf("%v", err))
+	// }
+	// migrateSourceToDestination = &networkv1beta1.IngressList{}
+	// if err := r.checkKubernetesServices(ctx,
+	// 	&dioscuri,
+	// 	ingressSourceToDestination,
+	// 	migrateSourceToDestination,
+	// 	destinationNamespace,
+	// ); err != nil {
+	// 	r.updateKubernetesStatusCondition(ctx,
+	// 		&dioscuri,
+	// 		dioscuriv1.HostMigrationConditions{
+	// 			Status:    "True",
+	// 			Type:      "failed",
+	// 			Condition: fmt.Sprintf("%v", err),
+	// 		},
+	// 		activeMigratedIngress,
+	// 		standbyMigratedIngress,
+	// 	)
+	// 	return ctrl.Result{}, nil
+	// }
+	// migrateDestinationToSource = &networkv1beta1.IngressList{}
+	// if err := r.checkKubernetesServices(ctx,
+	// 	&dioscuri,
+	// 	ingressDestinationToSource,
+	// 	migrateDestinationToSource,
+	// 	sourceNamespace,
+	// ); err != nil {
+	// 	r.updateKubernetesStatusCondition(ctx,
+	// 		&dioscuri,
+	// 		dioscuriv1.HostMigrationConditions{
+	// 			Status:    "True",
+	// 			Type:      "failed",
+	// 			Condition: fmt.Sprintf("%v", err),
+	// 		},
+	// 		activeMigratedIngress,
+	// 		standbyMigratedIngress,
+	// 	)
+	// 	return ctrl.Result{}, nil
+	// }
+	// for _, ingress := range migrateSourceToDestination.Items {
+	// 	fmt.Println(ingress.ObjectMeta.Name, ingress.ObjectMeta.Annotations)
+	// }
+	// for _, ingress := range migrateDestinationToSource.Items {
+	// 	fmt.Println(ingress.ObjectMeta.Name, ingress.ObjectMeta.Annotations)
+	// }
 	r.updateKubernetesStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
 		Status:    "True",
 		Type:      "completed",
@@ -382,7 +570,7 @@ func (r *HostMigrationReconciler) checkSecrets(ctx context.Context,
 	return nil
 }
 
-func (r *HostMigrationReconciler) getIngressWithLabel(dioscuri *dioscuriv1.HostMigration,
+func (r *HostMigrationReconciler) getIngressWithLabel(ctx context.Context, dioscuri *dioscuriv1.HostMigration,
 	ingress *networkv1beta1.IngressList,
 	namespace string,
 	labels map[string]string,
@@ -392,7 +580,7 @@ func (r *HostMigrationReconciler) getIngressWithLabel(dioscuri *dioscuriv1.HostM
 		client.InNamespace(namespace),
 		client.MatchingLabels(labels),
 	})
-	if err := r.List(context.TODO(), ingress, listOption); err != nil {
+	if err := r.List(ctx, ingress, listOption); err != nil {
 		return fmt.Errorf("Unable to get any ingress: %v", err)
 	}
 	return nil
@@ -473,7 +661,11 @@ func (r *HostMigrationReconciler) migrateIngress(ctx context.Context,
 	return nil
 }
 
-func (r *HostMigrationReconciler) updateIngress(ctx context.Context, dioscuri *dioscuriv1.HostMigration, newIngress *networkv1beta1.Ingress, oldIngressNamespace string, postMigrateResourcesJSON string) error {
+func (r *HostMigrationReconciler) updateIngress(ctx context.Context,
+	dioscuri *dioscuriv1.HostMigration,
+	newIngress *networkv1beta1.Ingress,
+	oldIngressNamespace string,
+	postMigrationRules string) error {
 	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	// check a few times to make sure the old ingress no longer exists
 	for i := 0; i < 10; i++ {
@@ -499,8 +691,15 @@ func (r *HostMigrationReconciler) updateIngress(ctx context.Context, dioscuri *d
 			if err := r.Patch(ctx, newIngress, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
 				return fmt.Errorf("Unable to patch ingress %s, error was: %v", newIngress.ObjectMeta.Name, err)
 			}
-			if err := r.migrateResourcePatch(ctx, *newIngress, postMigrateResourcesJSON); err != nil {
-				return err
+			// if there are any post migration rules, then handle them here
+			if postMigrationRules != "" {
+				opLog.Info(fmt.Sprintf("Post-migration annotation ruleset exists, patching resources as required"))
+				if err := r.prePostMigrationRules(ctx,
+					*newIngress,
+					postMigrationRules,
+				); err != nil {
+					return err
+				}
 			}
 			return nil
 		}
@@ -605,16 +804,42 @@ func (r *HostMigrationReconciler) updateKubernetesStatusCondition(ctx context.Co
 	return nil
 }
 
-func (r *HostMigrationReconciler) migrateResourcePatch(ctx context.Context, ingress networkv1beta1.Ingress, migrateResourcesJSON string) error {
-	if migrateResourcesJSON != "" {
-		var migrateResources []map[string]interface{}
-		migrateResourcesAnnotations := make(map[string]interface{})
-		if err := json.Unmarshal([]byte(migrateResourcesJSON), &migrateResources); err != nil {
-			panic(err)
+// patch ingresses with the rules we have for pre and post migration annotation changes
+func (r *HostMigrationReconciler) prePostMigrationRules(ctx context.Context, ingress networkv1beta1.Ingress, migrationRules string) error {
+	ingressAnnotations := make(map[string]interface{}, len(ingress.ObjectMeta.Annotations))
+	existingAnnotations := make(map[string]interface{}, len(ingress.ObjectMeta.Annotations))
+	for k, v := range ingress.ObjectMeta.Annotations {
+		ingressAnnotations[k] = v
+		existingAnnotations[k] = v
+	}
+	newAnnotations, err := ProcessAnnotationRules(migrationRules, &ingressAnnotations)
+	if err != nil {
+		return err
+	}
+	patchAnnotations := make(map[string]interface{})
+	for k, v := range newAnnotations {
+		found := false
+		for ka, va := range existingAnnotations {
+			if ka == k {
+				found = true
+				if va != v {
+					patchAnnotations[k] = v
+				}
+			}
 		}
-		for _, resource := range migrateResources {
-			migrateResourcesAnnotations[fmt.Sprintf("%s", resource["name"])] = fmt.Sprintf("%s", resource["value"])
+		if !found {
+			patchAnnotations[k] = v
 		}
+	}
+	err = r.migrateResourcePatchAnnotations(ctx, ingress, patchAnnotations)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *HostMigrationReconciler) migrateResourcePatchAnnotations(ctx context.Context, ingress networkv1beta1.Ingress, migrateResourcesAnnotations map[string]interface{}) error {
+	if len(migrateResourcesAnnotations) > 0 {
 		for _, tls := range ingress.Spec.TLS {
 			certificate := certv1alpha2.Certificate{}
 			err := r.Get(ctx, types.NamespacedName{Namespace: ingress.ObjectMeta.Namespace, Name: tls.SecretName}, &certificate)
@@ -642,10 +867,50 @@ func (r *HostMigrationReconciler) migrateResourcePatch(ctx context.Context, ingr
 			Name:      ingress.ObjectMeta.Name,
 			Namespace: ingress.ObjectMeta.Namespace,
 		}).Info(fmt.Sprintf("Patched ingress in namespace %s", ingress.ObjectMeta.Namespace))
-		// fmt.Println(migrateResourcesAnnotations)
 	}
 	return nil
 }
+
+// func (r *HostMigrationReconciler) migrateResourcePatch(ctx context.Context, ingress networkv1beta1.Ingress, migrateResourcesJSON string) error {
+// 	if migrateResourcesJSON != "" {
+// 		var migrateResources []map[string]interface{}
+// 		migrateResourcesAnnotations := make(map[string]interface{})
+// 		if err := json.Unmarshal([]byte(migrateResourcesJSON), &migrateResources); err != nil {
+// 			panic(err)
+// 		}
+// 		for _, resource := range migrateResources {
+// 			migrateResourcesAnnotations[fmt.Sprintf("%s", resource["name"])] = fmt.Sprintf("%s", resource["value"])
+// 		}
+// 		for _, tls := range ingress.Spec.TLS {
+// 			certificate := certv1alpha2.Certificate{}
+// 			err := r.Get(ctx, types.NamespacedName{Namespace: ingress.ObjectMeta.Namespace, Name: tls.SecretName}, &certificate)
+// 			if err != nil {
+// 				return fmt.Errorf("Unable to get certificate, error was: %v", err)
+// 			}
+// 			if err := r.patchCertificate(ctx, &certificate, migrateResourcesAnnotations); err != nil {
+// 				return fmt.Errorf("Unable to patch certificate, error was: %v", err)
+// 			}
+// 		}
+// 		for _, tls := range ingress.Spec.TLS {
+// 			secret := corev1.Secret{}
+// 			err := r.Get(ctx, types.NamespacedName{Namespace: ingress.ObjectMeta.Namespace, Name: tls.SecretName}, &secret)
+// 			if err != nil {
+// 				return fmt.Errorf("Unable to get secret, error was: %v", err)
+// 			}
+// 			if err := r.patchSecret(ctx, &secret, migrateResourcesAnnotations); err != nil {
+// 				return fmt.Errorf("Unable to patch secret, error was: %v", err)
+// 			}
+// 		}
+// 		if err := r.patchIngress(ctx, &ingress, migrateResourcesAnnotations); err != nil {
+// 			return fmt.Errorf("Unable to patch ingress, error was: %v", err)
+// 		}
+// 		r.Log.WithValues("ingress", types.NamespacedName{
+// 			Name:      ingress.ObjectMeta.Name,
+// 			Namespace: ingress.ObjectMeta.Namespace,
+// 		}).Info(fmt.Sprintf("Patched ingress in namespace %s", ingress.ObjectMeta.Namespace))
+// 	}
+// 	return nil
+// }
 
 func (r *HostMigrationReconciler) patchIngress(ctx context.Context, ingress *networkv1beta1.Ingress, annotations map[string]interface{}) error {
 	mergePatch, err := json.Marshal(map[string]interface{}{

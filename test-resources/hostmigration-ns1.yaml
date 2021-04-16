@@ -5,9 +5,9 @@ metadata:
   namespace: test-ns1
   annotations:
     dioscuri.amazee.io/migrate: 'true'
-    # dioscuri.amazee.io/post-migrate-resource-annotations: >-
-    #   [{"name":"fastly.amazee.io/delete-external-resources","value":"true"},{"name":"fastly.amazee.io/watch","value":"true"},{"name":"fastly.amazee.io/paused","value":"false"}]
-    # dioscuri.amazee.io/pre-migrate-resource-annotations: >-
-    #   [{"name":"fastly.amazee.io/delete-external-resources","value":"false"},{"name":"fastly.amazee.io/watch","value":"false"},{"name":"fastly.amazee.io/paused","value":"true"}]
+    dioscuri.amazee.io/pre-migrate-annotation-rules: >-
+      [{"if":[{"name":"fastly.amazee.io/paused","value":"false","operator":"equals"},{"name":"fastly.amazee.io/watch","value":"true","operator":"equals"}],"then":[{"name":"fastly.amazee.io/paused","value":"true","operator":"equals"},{"name":"fastly.amazee.io/watch","value":"false","operator":"equals"},{"name":"fastly.amazee.io/delete-external-resources","value":"false","operator":"equals"},{"name":"fastly.amazee.io/backup-paused","value":"fastly.amazee.io/paused","operator":"source"},{"name":"fastly.amazee.io/backup-watch","value":"fastly.amazee.io/watch","operator":"source"}]}]
+    dioscuri.amazee.io/post-migrate-annotation-rules: >-
+      [{"if":[{"name":"fastly.amazee.io/paused","value":"true","operator":"equals"},{"name":"fastly.amazee.io/watch","value":"false","operator":"equals"}],"then":[{"name":"fastly.amazee.io/delete-external-resources","operator":"delete"},{"name":"fastly.amazee.io/backup-delete-external-resources","operator":"delete"},{"name":"fastly.amazee.io/backup-paused","operator":"delete"},{"name":"fastly.amazee.io/backup-watch","operator":"delete"},{"name":"fastly.amazee.io/paused","value":"fastly.amazee.io/backup-paused","operator":"source"},{"name":"fastly.amazee.io/watch","value":"fastly.amazee.io/backup-watch","operator":"source"}]}]
 spec:
   destinationNamespace: test-ns2

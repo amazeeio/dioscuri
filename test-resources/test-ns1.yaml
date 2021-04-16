@@ -46,6 +46,9 @@ metadata:
   namespace: test-ns1
   labels:
     dioscuri.amazee.io/migrate: 'true'
+  annotations:
+    fastly.amazee.io/paused: "false"
+    fastly.amazee.io/watch: "true"
 spec:
   rules:
   - host: test1.localhost
@@ -54,131 +57,131 @@ spec:
       - backend:
           serviceName: example-nginx-svc
           servicePort: 80
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: test2.localhost
-  namespace: test-ns1
-  labels:
-    dioscuri.amazee.io/migrate: 'true'
-spec:
-  rules:
-  - host: test2.localhost
-    http:
-      paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: test3.localhost
-  namespace: test-ns1
-  labels:
-    dioscuri.amazee.io/migrate: 'true'
-spec:
-  rules:
-  - host: test3.localhost
-    http:
-      paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: test4.localhost
-  namespace: test-ns1
-  labels:
-    dioscuri.amazee.io/migrate: 'true'
-spec:
-  rules:
-  - host: test4.localhost
-    http:
-      paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: test5.localhost
-  namespace: test-ns1
-  labels:
-    dioscuri.amazee.io/migrate: 'true'
-spec:
-  rules:
-  - host: test5.localhost
-    http:
-      paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: test6.localhost
-  namespace: test-ns1
-  labels:
-    dioscuri.amazee.io/migrate: 'true'
-spec:
-  rules:
-  - host: test6.localhost
-    http:
-      paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: test7.localhost
-  namespace: test-ns1
-  labels:
-    dioscuri.amazee.io/migrate: 'true'
-spec:
-  rules:
-  - host: test7.localhost
-    http:
-      paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: test8.localhost
-  namespace: test-ns1
-  labels:
-    dioscuri.amazee.io/migrate: 'true'
-spec:
-  rules:
-  - host: test8.localhost
-    http:
-      paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: test9.localhost
-  namespace: test-ns1
-  labels:
-    dioscuri.amazee.io/migrate: 'true'
-spec:
-  rules:
-  - host: test9.localhost
-    http:
-      paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+# ---
+# apiVersion: networking.k8s.io/v1beta1
+# kind: Ingress
+# metadata:
+#   name: test2.localhost
+#   namespace: test-ns1
+#   labels:
+#     dioscuri.amazee.io/migrate: 'true'
+# spec:
+#   rules:
+#   - host: test2.localhost
+#     http:
+#       paths:
+#       - backend:
+#           serviceName: example-nginx-svc
+#           servicePort: 80
+# ---
+# apiVersion: networking.k8s.io/v1beta1
+# kind: Ingress
+# metadata:
+#   name: test3.localhost
+#   namespace: test-ns1
+#   labels:
+#     dioscuri.amazee.io/migrate: 'true'
+# spec:
+#   rules:
+#   - host: test3.localhost
+#     http:
+#       paths:
+#       - backend:
+#           serviceName: example-nginx-svc
+#           servicePort: 80
+# ---
+# apiVersion: networking.k8s.io/v1beta1
+# kind: Ingress
+# metadata:
+#   name: test4.localhost
+#   namespace: test-ns1
+#   labels:
+#     dioscuri.amazee.io/migrate: 'true'
+# spec:
+#   rules:
+#   - host: test4.localhost
+#     http:
+#       paths:
+#       - backend:
+#           serviceName: example-nginx-svc
+#           servicePort: 80
+# ---
+# apiVersion: networking.k8s.io/v1beta1
+# kind: Ingress
+# metadata:
+#   name: test5.localhost
+#   namespace: test-ns1
+#   labels:
+#     dioscuri.amazee.io/migrate: 'true'
+# spec:
+#   rules:
+#   - host: test5.localhost
+#     http:
+#       paths:
+#       - backend:
+#           serviceName: example-nginx-svc
+#           servicePort: 80
+# ---
+# apiVersion: networking.k8s.io/v1beta1
+# kind: Ingress
+# metadata:
+#   name: test6.localhost
+#   namespace: test-ns1
+#   labels:
+#     dioscuri.amazee.io/migrate: 'true'
+# spec:
+#   rules:
+#   - host: test6.localhost
+#     http:
+#       paths:
+#       - backend:
+#           serviceName: example-nginx-svc
+#           servicePort: 80
+# ---
+# apiVersion: networking.k8s.io/v1beta1
+# kind: Ingress
+# metadata:
+#   name: test7.localhost
+#   namespace: test-ns1
+#   labels:
+#     dioscuri.amazee.io/migrate: 'true'
+# spec:
+#   rules:
+#   - host: test7.localhost
+#     http:
+#       paths:
+#       - backend:
+#           serviceName: example-nginx-svc
+#           servicePort: 80
+# ---
+# apiVersion: networking.k8s.io/v1beta1
+# kind: Ingress
+# metadata:
+#   name: test8.localhost
+#   namespace: test-ns1
+#   labels:
+#     dioscuri.amazee.io/migrate: 'true'
+# spec:
+#   rules:
+#   - host: test8.localhost
+#     http:
+#       paths:
+#       - backend:
+#           serviceName: example-nginx-svc
+#           servicePort: 80
+# ---
+# apiVersion: networking.k8s.io/v1beta1
+# kind: Ingress
+# metadata:
+#   name: test9.localhost
+#   namespace: test-ns1
+#   labels:
+#     dioscuri.amazee.io/migrate: 'true'
+# spec:
+#   rules:
+#   - host: test9.localhost
+#     http:
+#       paths:
+#       - backend:
+#           serviceName: example-nginx-svc
+#           servicePort: 80
