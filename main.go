@@ -31,7 +31,7 @@ import (
 
 	certv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
-	networkv1beta1 "k8s.io/api/networking/v1beta1"
+	networkv1 "k8s.io/api/networking/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -47,7 +47,7 @@ func init() {
 	_ = oappsv1.AddToScheme(scheme)
 	_ = routev1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
-	_ = networkv1beta1.AddToScheme(scheme)
+	_ = networkv1.AddToScheme(scheme)
 	_ = certv1alpha2.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }

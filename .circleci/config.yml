@@ -28,8 +28,8 @@ jobs:
           name: Install Helm
           command: |
             sudo rm -rf /usr/local/helm
-            curl -sLo /tmp/helm-v3.5.3-linux-amd64.tar.gz https://get.helm.sh/helm-v3.5.3-linux-amd64.tar.gz
-            sudo tar -C /tmp -xzf /tmp/helm-v3.5.3-linux-amd64.tar.gz
+            curl -sLo /tmp/helm-v3.6.3-linux-amd64.tar.gz https://get.helm.sh/helm-v3.6.3-linux-amd64.tar.gz
+            sudo tar -C /tmp -xzf /tmp/helm-v3.6.3-linux-amd64.tar.gz
             sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
       - run:
           name: Install Kustomize
@@ -39,14 +39,14 @@ jobs:
       - run:
           name: Install KinD
           command: |
-            curl -sLo /tmp/kind https://github.com/kubernetes-sigs/kind/releases/download/v0.7.0/kind-linux-amd64
+            curl -sLo /tmp/kind https://github.com/kubernetes-sigs/kind/releases/download/v0.11.1/kind-linux-amd64
             chmod +x /tmp/kind
             sudo mv /tmp/kind /usr/local/bin/
       - run:
           name: Install kubebuilder
           command: |
-            curl -sL https://go.kubebuilder.io/dl/2.2.0/linux/amd64 | tar -xz -C /tmp/
-            sudo mv /tmp/kubebuilder_2.2.0_linux_amd64 /usr/local/kubebuilder
+            curl -sL https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.3.2/kubebuilder_2.3.2_linux_amd64.tar.gz | tar -xz -C /tmp/
+            sudo mv /tmp/kubebuilder_2.3.2_linux_amd64 /usr/local/kubebuilder
       - run:
           name: Run Tests
           command: |

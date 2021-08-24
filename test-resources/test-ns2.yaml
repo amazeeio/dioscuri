@@ -39,7 +39,7 @@ spec:
         ports:
         - containerPort: 8080
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test1-standby.localhost
@@ -51,11 +51,15 @@ spec:
   - host: test1-standby.localhost
     http:
       paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: example-nginx-svc
+            port:
+              number: 80
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test2-standby.localhost
@@ -67,11 +71,15 @@ spec:
   - host: test2-standby.localhost
     http:
       paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: example-nginx-svc
+            port:
+              number: 80
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test3-standby.localhost
@@ -83,11 +91,15 @@ spec:
   - host: test3-standby.localhost
     http:
       paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: example-nginx-svc
+            port:
+              number: 80
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test4-standby.localhost
@@ -99,11 +111,15 @@ spec:
   - host: test4-standby.localhost
     http:
       paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: example-nginx-svc
+            port:
+              number: 80
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test5-standby.localhost
@@ -115,11 +131,15 @@ spec:
   - host: test5-standby.localhost
     http:
       paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: example-nginx-svc
+            port:
+              number: 80
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test6-standby.localhost
@@ -131,11 +151,15 @@ spec:
   - host: test6-standby.localhost
     http:
       paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: example-nginx-svc
+            port:
+              number: 80
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test7-standby.localhost
@@ -147,11 +171,15 @@ spec:
   - host: test7-standby.localhost
     http:
       paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: example-nginx-svc
+            port:
+              number: 80
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test8-standby.localhost
@@ -163,11 +191,15 @@ spec:
   - host: test8-standby.localhost
     http:
       paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: example-nginx-svc
+            port:
+              number: 80
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test9-standby.localhost
@@ -179,6 +211,10 @@ spec:
   - host: test9-standby.localhost
     http:
       paths:
-      - backend:
-          serviceName: example-nginx-svc
-          servicePort: 80
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: example-nginx-svc
+            port:
+              number: 80
