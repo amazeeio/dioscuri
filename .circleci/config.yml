@@ -22,8 +22,8 @@ jobs:
           name: Install Go
           command: |
             sudo rm -rf /usr/local/go
-            curl -sLo /tmp/go1.13.7.linux-amd64.tar.gz https://dl.google.com/go/go1.13.7.linux-amd64.tar.gz
-            sudo tar -C /usr/local -xzf /tmp/go1.13.7.linux-amd64.tar.gz
+            curl -sLo /tmp/go1.16.7.linux-amd64.tar.gz https://dl.google.com/go/go1.16.7.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/go1.16.7.linux-amd64.tar.gz
       - run:
           name: Install Helm
           command: |

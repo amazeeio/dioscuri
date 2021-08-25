@@ -46,7 +46,7 @@ build_deploy_dioscuri () {
 }
 
 echo -e "${GREEN}==>${NOCOLOR} Create dioscuri kind cluster"
-kind create cluster --image kindest/node:v1.17.0 --name ${KIND_NAME} --config test-resources/kind-cluster.yaml
+kind create cluster --image kindest/node:v1.21.1 --name ${KIND_NAME} --config test-resources/kind-cluster.yaml
 kubectl cluster-info --context kind-${KIND_NAME}
 kubectl config use-context kind-${KIND_NAME}
 
