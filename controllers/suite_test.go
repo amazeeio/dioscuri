@@ -16,7 +16,7 @@ limitations under the License.
 package controllers
 
 import (
-	"os"
+	// "os"
 
 	"path/filepath"
 	"testing"
@@ -51,7 +51,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func(done Done) {
-//	os.Setenv("USE_EXISTING_CLUSTER", "true")
+	//	os.Setenv("USE_EXISTING_CLUSTER", "true")
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(false)))
 
 	By("bootstrapping test environment")
