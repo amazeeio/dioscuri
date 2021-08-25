@@ -37,7 +37,7 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 	}
 	if err := r.Patch(ctx,
 		&dioscuri,
-		client.ConstantPatch(
+		client.RawPatch(
 			types.MergePatchType,
 			mergePatch,
 		),
@@ -334,14 +334,14 @@ func (r *HostMigrationReconciler) checkKubernetesServices(ctx context.Context,
 				err := r.Get(ctx,
 					types.NamespacedName{
 						Namespace: destinationNamespace,
-						Name:      path.Backend.ServiceName,
+						Name:      path.Backend.Service.Name,
 					},
 					service,
 				)
 				if err != nil {
 					if apierrors.IsNotFound(err) {
 						return fmt.Errorf("Service %s for ingress %s doesn't exist in namespace %s, skipping ingress",
-							path.Backend.ServiceName, host.Host, destinationNamespace)
+							path.Backend.Service.Name, host.Host, destinationNamespace)
 					}
 					return fmt.Errorf("Error getting service, error was: %v", err)
 				}
@@ -496,7 +496,7 @@ func (r *HostMigrationReconciler) updateIngress(ctx context.Context, dioscuri *d
 				opLog.Info(fmt.Sprintf("The following secrets remained in the source namespace: %s", strings.Join(secrets, ",")))
 			}
 			opLog.Info(fmt.Sprintf("Patching ingress %s in namespace %s", newIngress.ObjectMeta.Name, newIngress.ObjectMeta.Namespace))
-			if err := r.Patch(ctx, newIngress, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+			if err := r.Patch(ctx, newIngress, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 				return fmt.Errorf("Unable to patch ingress %s, error was: %v", newIngress.ObjectMeta.Name, err)
 			}
 			if err := r.migrateResourcePatch(ctx, *newIngress, postMigrateResourcesJSON); err != nil {
@@ -598,7 +598,7 @@ func (r *HostMigrationReconciler) updateKubernetesStatusCondition(ctx context.Co
 				},
 			},
 		})
-		if err := r.Patch(ctx, dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+		if err := r.Patch(ctx, dioscuri, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 			return fmt.Errorf("Unable to update status condition: %v", err)
 		}
 	}
@@ -656,7 +656,7 @@ func (r *HostMigrationReconciler) patchIngress(ctx context.Context, ingress *net
 	if err != nil {
 		return fmt.Errorf("Unable to create mergepatch for %s, error was: %v", ingress.ObjectMeta.Name, err)
 	}
-	if err := r.Patch(ctx, ingress, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+	if err := r.Patch(ctx, ingress, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 		return fmt.Errorf("Unable to patch ingress %s, error was: %v", ingress.ObjectMeta.Name, err)
 	}
 	r.Log.WithValues("ingress", types.NamespacedName{
@@ -675,7 +675,7 @@ func (r *HostMigrationReconciler) patchSecret(ctx context.Context, secret *corev
 	if err != nil {
 		return fmt.Errorf("Unable to create mergepatch for %s, error was: %v", secret.ObjectMeta.Name, err)
 	}
-	if err := r.Patch(ctx, secret, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+	if err := r.Patch(ctx, secret, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 		return fmt.Errorf("Unable to patch ingress %s, error was: %v", secret.ObjectMeta.Name, err)
 	}
 	r.Log.WithValues("ingress", types.NamespacedName{
@@ -694,7 +694,7 @@ func (r *HostMigrationReconciler) patchCertificate(ctx context.Context, certific
 	if err != nil {
 		return fmt.Errorf("Unable to create mergepatch for %s, error was: %v", certificate.ObjectMeta.Name, err)
 	}
-	if err := r.Patch(ctx, certificate, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+	if err := r.Patch(ctx, certificate, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 		return fmt.Errorf("Unable to certificate ingress %s, error was: %v", certificate.ObjectMeta.Name, err)
 	}
 	r.Log.WithValues("ingress", types.NamespacedName{

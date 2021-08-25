@@ -54,8 +54,8 @@ type MigratedRoutes struct {
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes/custom-host,verbs=create
 
 // Reconcile is the actual reconcilation process
-func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *RouteMigrateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	//	ctx := context.Background()
 	opLog := r.Log.WithValues("routemigrate", req.NamespacedName)
 	// your logic here
 	var dioscuri dioscuriv1.RouteMigrate
@@ -90,7 +90,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("Unable to create mergepatch for %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 			}
-			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+			if err := r.Patch(ctx, &dioscuri, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, fmt.Errorf("Unable to patch routemigrate %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 			}
 			r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.RouteMigrateConditions{
@@ -231,7 +231,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 					"finalizers": dioscuri.ObjectMeta.Finalizers,
 				},
 			})
-			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+			if err := r.Patch(ctx, &dioscuri, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -251,7 +251,7 @@ func (r *RouteMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 					"finalizers": dioscuri.ObjectMeta.Finalizers,
 				},
 			})
-			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+			if err := r.Patch(ctx, &dioscuri, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -386,7 +386,7 @@ func (r *RouteMigrateReconciler) updateRoute(dioscuri *dioscuriv1.RouteMigrate, 
 				return fmt.Errorf("Unable to create mergepatch for %s, error was: %v", newRoute.ObjectMeta.Name, err)
 			}
 			opLog.Info(fmt.Sprintf("Patching route %s in namespace %s", newRoute.ObjectMeta.Name, newRoute.ObjectMeta.Namespace))
-			if err := r.Patch(context.Background(), newRoute, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+			if err := r.Patch(context.Background(), newRoute, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 				return fmt.Errorf("Unable to patch route %s, error was: %v", newRoute.ObjectMeta.Name, err)
 			}
 			return nil
@@ -459,7 +459,7 @@ func (r *RouteMigrateReconciler) updateStatusCondition(ctx context.Context,
 				},
 			},
 		})
-		if err := r.Patch(ctx, dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+		if err := r.Patch(ctx, dioscuri, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 			return fmt.Errorf("Unable to update status condition: %v", err)
 		}
 	}

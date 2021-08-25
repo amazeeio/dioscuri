@@ -32,7 +32,7 @@ func (r *HostMigrationReconciler) OpenshiftHandler(ctx context.Context, opLog lo
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("Unable to create mergepatch for %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 	}
-	if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+	if err := r.Patch(ctx, &dioscuri, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 		return ctrl.Result{}, fmt.Errorf("Unable to patch hostmigration %s, error was: %v", dioscuri.ObjectMeta.Name, err)
 	}
 	r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.HostMigrationConditions{
@@ -285,7 +285,7 @@ func (r *HostMigrationReconciler) updateRoute(dioscuri *dioscuriv1.HostMigration
 				return fmt.Errorf("Unable to create mergepatch for %s, error was: %v", newRoute.ObjectMeta.Name, err)
 			}
 			opLog.Info(fmt.Sprintf("Patching route %s in namespace %s", newRoute.ObjectMeta.Name, newRoute.ObjectMeta.Namespace))
-			if err := r.Patch(context.Background(), newRoute, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+			if err := r.Patch(context.Background(), newRoute, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 				return fmt.Errorf("Unable to patch route %s, error was: %v", newRoute.ObjectMeta.Name, err)
 			}
 			return nil
@@ -358,7 +358,7 @@ func (r *HostMigrationReconciler) updateStatusCondition(ctx context.Context,
 				},
 			},
 		})
-		if err := r.Patch(ctx, dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+		if err := r.Patch(ctx, dioscuri, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 			return fmt.Errorf("Unable to update status condition: %v", err)
 		}
 	}
