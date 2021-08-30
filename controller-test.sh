@@ -6,11 +6,11 @@ YELLOW='\033[1;33m'
 LIGHTBLUE='\033[1;34m'
 MAGENTA='\033[1;35m'
 
-DIOSCURI_IMAGE=amazeeio/dioscuri:test-tag
+DIOSCURI_IMAGE=amazeeiolocal/dioscuri:test-tag
 DIOSCURI_NS=dioscuri-controller
 CHECK_TIMEOUT=10
 
-KIND_NAME=dioscuri
+KIND_NAME=chart-testing
 
 check_dioscuri_log () {
     echo -e "${GREEN}========= FULL DIOSCURI LOG =========${NOCOLOR}"
@@ -24,8 +24,8 @@ tear_down () {
 
 build_deploy_dioscuri () {
     echo -e "${GREEN}==>${NOCOLOR} Build and deploy dioscuri"
-    make docker-build IMG=${DIOSCURI_IMAGE}
-    kind load docker-image ${DIOSCURI_IMAGE} --name ${KIND_NAME}
+    # make docker-build IMG=${DIOSCURI_IMAGE}
+    # kind load docker-image ${DIOSCURI_IMAGE} --name ${KIND_NAME}
     make deploy IMG=${DIOSCURI_IMAGE}
 
     CHECK_COUNTER=1
@@ -46,16 +46,16 @@ build_deploy_dioscuri () {
 }
 
 echo -e "${GREEN}==>${NOCOLOR} Create dioscuri kind cluster"
-kind create cluster --image kindest/node:v1.21.1 --name ${KIND_NAME} --config test-resources/kind-cluster.yaml
-kubectl cluster-info --context kind-${KIND_NAME}
-kubectl config use-context kind-${KIND_NAME}
+# kind create cluster --image kindest/node:v1.21.1 --name ${KIND_NAME} --config test-resources/kind-cluster.yaml
+# kubectl cluster-info --context kind-${KIND_NAME}
+# kubectl config use-context kind-${KIND_NAME}
 
 NUM_PODS=$(kubectl -n ingress-nginx get pods | grep -ow "Running"| wc -l |  tr  -d " ")
 if [ $NUM_PODS -ne 1 ]; then
     echo -e "${GREEN}===>${NOCOLOR} Install ingress-nginx"
     helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
     kubectl create namespace ingress-nginx
-    helm upgrade --install -n ingress-nginx ingress-nginx ingress-nginx/ingress-nginx -f test-resources/ingress-nginx-values.yaml
+    helm upgrade --install -n ingress-nginx ingress-nginx ingress-nginx/ingress-nginx -f test-resources/ingress-nginx-values.yaml  --version 3.36.0
 else
     echo -e "${GREEN}===>${NOCOLOR} Ingress-nginx is installed"
 fi
