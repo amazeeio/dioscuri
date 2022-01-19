@@ -55,7 +55,7 @@ if [ $NUM_PODS -ne 1 ]; then
     echo -e "${GREEN}===>${NOCOLOR} Install ingress-nginx"
     helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
     kubectl create namespace ingress-nginx
-    helm upgrade --install -n ingress-nginx ingress-nginx ingress-nginx/ingress-nginx -f test-resources/ingress-nginx-values.yaml --version 4.0.1
+    helm upgrade --install -n ingress-nginx ingress-nginx ingress-nginx/ingress-nginx -f test-resources/ingress-nginx-values.yaml --version 4.0.16
 else
     echo -e "${GREEN}===>${NOCOLOR} Ingress-nginx is installed"
 fi
