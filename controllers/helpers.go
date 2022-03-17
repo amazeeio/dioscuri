@@ -43,26 +43,6 @@ func RemoveString(slice []string, s string) (result []string) {
 	return
 }
 
-// RouteContainsStatus check if conditions contains a condition
-func RouteContainsStatus(slice []dioscuriv1.RouteMigrateConditions, s dioscuriv1.RouteMigrateConditions) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-// IngressContainsStatus check if conditions contains a condition
-func IngressContainsStatus(slice []dioscuriv1.IngressMigrateConditions, s dioscuriv1.IngressMigrateConditions) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
 // HostMigrationContainsStatus check if conditions contains a condition
 func HostMigrationContainsStatus(slice []dioscuriv1.HostMigrationConditions, s dioscuriv1.HostMigrationConditions) bool {
 	for _, item := range slice {
