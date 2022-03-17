@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"encoding/json"
+
 	dioscuriv1 "github.com/amazeeio/dioscuri/api/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -71,4 +73,91 @@ func HostMigrationContainsStatus(slice []dioscuriv1.HostMigrationConditions, s d
 		}
 	}
 	return false
+}
+
+// ProcessAnnotationRules will return new annotations based on a given ruleset and existing annotations
+func ProcessAnnotationRules(ruleset string, annotations *map[string]interface{}) (map[string]interface{}, error) {
+	var rules Rules
+	if err := json.Unmarshal([]byte(ruleset), &rules); err != nil {
+		return nil, err
+	}
+	newAnnos := *annotations
+	for _, rule := range rules {
+		ifOk := 0
+		for _, rif := range rule.If {
+			switch rif.Operator {
+			case "doesnotexist":
+				dne := true
+				for key := range *annotations {
+					if key == rif.Name {
+						dne = false
+					}
+				}
+				if dne {
+					ifOk++
+				}
+			case "equals":
+				for key, val := range *annotations {
+					if rif.Name == key && rif.Value == val {
+						ifOk++
+					}
+				}
+			}
+		}
+		if ifOk == len(rule.If) {
+			for _, rthen := range rule.Then {
+				switch rthen.Operator {
+				case "source":
+					updateAnnotation(rthen.Name, &newAnnos, getAnnotationValue(rthen.Value, *annotations))
+				}
+			}
+			for _, rthen := range rule.Then {
+				switch rthen.Operator {
+				case "equals":
+					updateAnnotation(rthen.Name, &newAnnos, rthen.Value)
+				}
+			}
+			for _, rthen := range rule.Then {
+				switch rthen.Operator {
+				case "delete":
+					removeAnnotation(rthen.Name, &newAnnos)
+				}
+			}
+			break
+		}
+	}
+	return newAnnos, nil
+}
+
+func removeAnnotation(annotation string, annotations *map[string]interface{}) {
+	// delete(*annotations, annotation)
+	(*annotations)[annotation] = nil
+}
+
+func updateAnnotation(annotation string, annotations *map[string]interface{}, value string) {
+	(*annotations)[annotation] = value
+}
+
+func getAnnotationValue(annotation string, annotations map[string]interface{}) string {
+	return annotations[annotation].(string)
+}
+
+// Rules .
+type Rules []struct {
+	If   []RulesIf   `json:"if"`
+	Then []RulesThen `json:"then"`
+}
+
+// RulesIf .
+type RulesIf struct {
+	Name     string `json:"name"`
+	Value    string `json:"value"`
+	Operator string `json:"operator"`
+}
+
+// RulesThen .
+type RulesThen struct {
+	Name     string `json:"name"`
+	Value    string `json:"value"`
+	Operator string `json:"operator"`
 }

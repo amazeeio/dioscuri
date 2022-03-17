@@ -261,17 +261,61 @@ func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			// START MIGRATING ROUTES SECTION
 			// actually start the migrations here
 			var migratedIngress []MigratedIngress
+
+			// do any pre-migration resource annotation adjustments with our rulesets
 			for _, ingress := range migrateSourceToDestination.Items {
 				// before we move anything we may need to modify some annotations
 				// patch all the annotations we are given in the `pre-migrate-resource-annotations`
 				// with the provided values
-				if err := r.migrateResourcePatch(ctx,
+				if err := r.prePostMigrationRules(ctx,
 					ingress,
-					dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/pre-migrate-resource-annotations"],
+					`[
+						{
+							"if": [
+								{"name": "fastly.amazee.io/paused", "value": "false", "operator": "equals"},
+								{"name": "fastly.amazee.io/watch", "value": "true", "operator": "equals"}
+							],
+							"then": [
+								{"name": "fastly.amazee.io/paused", "value": "true", "operator": "equals"},
+								{"name": "fastly.amazee.io/watch", "value": "false", "operator": "equals"},
+								{"name": "fastly.amazee.io/delete-external-resources", "value": "false", "operator": "equals"},
+								{"name": "fastly.amazee.io/backup-paused", "value": "fastly.amazee.io/paused", "operator": "source"},
+								{"name": "fastly.amazee.io/backup-watch", "value": "fastly.amazee.io/watch", "operator": "source"}
+							]
+						}
+					]`,
 				); err != nil {
 					return ctrl.Result{}, err
 				}
+			}
+			for _, ingress := range migrateDestinationToSource.Items {
+				// before we move anything we may need to modify some annotations
+				// patch all the annotations we are given in the `pre-migrate-resource-annotations`
+				// with the provided values
+				if err := r.prePostMigrationRules(ctx,
+					ingress,
+					`[
+						{
+							"if": [
+								{"name": "fastly.amazee.io/paused", "value": "false", "operator": "equals"},
+								{"name": "fastly.amazee.io/watch", "value": "true", "operator": "equals"}
+							],
+							"then": [
+								{"name": "fastly.amazee.io/paused", "value": "true", "operator": "equals"},
+								{"name": "fastly.amazee.io/watch", "value": "false", "operator": "equals"},
+								{"name": "fastly.amazee.io/delete-external-resources", "value": "false", "operator": "equals"},
+								{"name": "fastly.amazee.io/backup-paused", "value": "fastly.amazee.io/paused", "operator": "source"},
+								{"name": "fastly.amazee.io/backup-watch", "value": "fastly.amazee.io/watch", "operator": "source"}
+							]
+						}
+					]`,
+				); err != nil {
+					return ctrl.Result{}, err
+				}
+			}
 
+			// now do the migrations
+			for _, ingress := range migrateSourceToDestination.Items {
 				// migrate these ingress
 				newIngress, err := r.individualIngressMigration(ctx,
 					&dioscuri,
@@ -307,15 +351,6 @@ func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				}
 			}
 			for _, ingress := range migrateDestinationToSource.Items {
-				// before we move anything we may need to modify some annotations
-				// patch all the annotations we are given in the `pre-migrate-resource-annotations`
-				// with the provided values
-				if err := r.migrateResourcePatch(ctx,
-					ingress,
-					dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/pre-migrate-resource-annotations"],
-				); err != nil {
-					return ctrl.Result{}, err
-				}
 				// migrate these ingress
 				newIngress, err := r.individualIngressMigration(ctx,
 					&dioscuri,
@@ -361,7 +396,7 @@ func (r *IngressMigrateReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 					&dioscuri,
 					migratedIngress.NewIngress,
 					migratedIngress.OldIngressNamespace,
-					dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/post-migrate-resource-annotations"],
+					dioscuri.ObjectMeta.Annotations["dioscuri.amazee.io/post-migrate-annotation-rules"],
 				)
 				if err != nil {
 					r.updateStatusCondition(ctx, &dioscuri, dioscuriv1.IngressMigrateConditions{
@@ -710,6 +745,20 @@ func (r *IngressMigrateReconciler) updateStatusCondition(ctx context.Context,
 			return fmt.Errorf("Unable to update status condition: %v", err)
 		}
 	}
+	return nil
+}
+
+// patch ingresses with the rules we have for pre and post migration annotation changes
+func (r *IngressMigrateReconciler) prePostMigrationRules(ctx context.Context, ingress networkv1beta1.Ingress, preMigrateRules string) error {
+	ingressAnnotations := make(map[string]interface{}, len(ingress.ObjectMeta.Annotations))
+	for k, v := range ingress.ObjectMeta.Annotations {
+		ingressAnnotations[k] = v
+	}
+	preAnnos, err := ProcessAnnotationRules(preMigrateRules, &ingressAnnotations)
+	if err != nil {
+		return err
+	}
+	fmt.Println("PREANNOS", preAnnos)
 	return nil
 }
 
