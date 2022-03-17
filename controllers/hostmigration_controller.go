@@ -49,8 +49,7 @@ type HostMigrationReconciler struct {
 // +kubebuilder:rbac:groups="cert-manager.io",resources=certificates,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is the actual reconcilation process
-func (r *HostMigrationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *HostMigrationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	opLog := r.Log.WithValues("hostmigration", req.NamespacedName)
 
 	// your logic here
@@ -85,7 +84,7 @@ func (r *HostMigrationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 					"finalizers": dioscuri.ObjectMeta.Finalizers,
 				},
 			})
-			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+			if err := r.Patch(ctx, &dioscuri, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -105,7 +104,7 @@ func (r *HostMigrationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 					"finalizers": dioscuri.ObjectMeta.Finalizers,
 				},
 			})
-			if err := r.Patch(ctx, &dioscuri, client.ConstantPatch(types.MergePatchType, mergePatch)); err != nil {
+			if err := r.Patch(ctx, &dioscuri, client.RawPatch(types.MergePatchType, mergePatch)); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -118,4 +117,9 @@ func (r *HostMigrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dioscuriv1.HostMigration{}).
 		Complete(r)
+}
+
+func (r *HostMigrationReconciler) deleteExternalResources(dioscuri *dioscuriv1.HostMigration, namespace string) error {
+	// delete any external resources associated with the autoidler
+	return nil
 }

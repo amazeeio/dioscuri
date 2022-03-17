@@ -15,7 +15,7 @@ type IngressPredicates struct {
 // Create .
 func (IngressPredicates) Create(e event.CreateEvent) bool {
 	// handle "dioscuri.amazee.io/migrate" annotation
-	if _, ok := e.Meta.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
+	if _, ok := e.Object.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
 		return true
 	}
 	return false
@@ -24,7 +24,7 @@ func (IngressPredicates) Create(e event.CreateEvent) bool {
 // Delete .
 func (IngressPredicates) Delete(e event.DeleteEvent) bool {
 	// handle "dioscuri.amazee.io/migrate" annotation
-	if _, ok := e.Meta.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
+	if _, ok := e.Object.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
 		return true
 	}
 	return false
@@ -33,8 +33,8 @@ func (IngressPredicates) Delete(e event.DeleteEvent) bool {
 // Update .
 func (IngressPredicates) Update(e event.UpdateEvent) bool {
 	// handle "dioscuri.amazee.io/migrate" annotation
-	if _, ok := e.MetaNew.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
-		if _, okOld := e.MetaOld.GetAnnotations()["dioscuri.amazee.io/migrate"]; okOld {
+	if _, ok := e.ObjectNew.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
+		if _, okOld := e.ObjectOld.GetAnnotations()["dioscuri.amazee.io/migrate"]; okOld {
 			return true
 		}
 	}
@@ -44,7 +44,7 @@ func (IngressPredicates) Update(e event.UpdateEvent) bool {
 // Generic .
 func (IngressPredicates) Generic(e event.GenericEvent) bool {
 	// handle "dioscuri.amazee.io/migrate" annotation
-	if _, ok := e.Meta.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
+	if _, ok := e.Object.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
 		return true
 	}
 	return false
