@@ -19,6 +19,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// MigratedIngress .
+type MigratedIngress struct {
+	NewIngress          *networkv1.Ingress
+	OldIngressNamespace string
+}
+
 // KubernetesHandler handles doing ingress migrations in a kubernetes cluster
 func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog logr.Logger, dioscuri dioscuriv1.HostMigration) (ctrl.Result, error) {
 	var activeMigratedIngress []string

@@ -50,7 +50,6 @@ type HostMigrationReconciler struct {
 
 // Reconcile is the actual reconcilation process
 func (r *HostMigrationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	//	ctx := context.Background()
 	opLog := r.Log.WithValues("hostmigration", req.NamespacedName)
 
 	// your logic here
@@ -118,4 +117,9 @@ func (r *HostMigrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dioscuriv1.HostMigration{}).
 		Complete(r)
+}
+
+func (r *HostMigrationReconciler) deleteExternalResources(dioscuri *dioscuriv1.HostMigration, namespace string) error {
+	// delete any external resources associated with the autoidler
+	return nil
 }
