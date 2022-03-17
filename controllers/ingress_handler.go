@@ -70,37 +70,6 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 		return ctrl.Result{}, nil
 	}
 
-	/*
-		// START ACME-CHALLENGE CLEANUP SECTION
-		// check ingress in the source namespace for any pending acme-challenges
-		// check if any ingress in the source namespace have an exposer label, we need to remove these before we move any ingress
-		acmeLabels := map[string]string{"acme.openshift.io/exposer": "true"}
-		acmeSourceToDestination := &networkv1beta1.IngressList{}
-		if err := r.getIngressWithLabel(&dioscuri, acmeSourceToDestination, sourceNamespace, acmeLabels); err != nil {
-			opLog.Info(fmt.Sprintf("%v", err))
-		}
-		if err := r.cleanUpAcmeChallenges(&dioscuri, acmeSourceToDestination); err != nil {
-			r.updateKubernetesStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
-				Status:    "True",
-				Type:      "failed",
-				Condition: fmt.Sprintf("%v", err),
-			}, activeMigratedIngress, standbyMigratedIngress)
-			return ctrl.Result{}, err
-		}
-		acmeDestinationToSource := &networkv1beta1.IngressList{}
-		if err := r.getIngressWithLabel(&dioscuri, acmeDestinationToSource, destinationNamespace, acmeLabels); err != nil {
-			opLog.Info(fmt.Sprintf("%v", err))
-		}
-		if err := r.cleanUpAcmeChallenges(&dioscuri, acmeDestinationToSource); err != nil {
-			r.updateKubernetesStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
-				Status:    "True",
-				Type:      "failed",
-				Condition: fmt.Sprintf("%v", err),
-			}, activeMigratedIngress, standbyMigratedIngress)
-			return ctrl.Result{}, err
-		}
-		// END ACME-CHALLENGE CLEANUP SECTION
-	*/
 	// START CHECKING SERVICES SECTION
 	migrateLabels := map[string]string{"dioscuri.amazee.io/migrate": "true"}
 	// get the ingress from the source namespace, these will get moved to the destination namespace
