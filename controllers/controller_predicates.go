@@ -7,50 +7,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-// RoutePredicates .
-type RoutePredicates struct {
-	predicate.Funcs
-}
-
-// Create .
-func (RoutePredicates) Create(e event.CreateEvent) bool {
-	// handle "dioscuri.amazee.io/migrate" annotation
-	if _, ok := e.Meta.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
-		return true
-	}
-	return false
-}
-
-// Delete .
-func (RoutePredicates) Delete(e event.DeleteEvent) bool {
-	// handle "dioscuri.amazee.io/migrate" annotation
-	if _, ok := e.Meta.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
-		return true
-	}
-	return false
-}
-
-// Update .
-func (RoutePredicates) Update(e event.UpdateEvent) bool {
-	// handle "dioscuri.amazee.io/migrate" annotation
-	if _, okOld := e.MetaOld.GetAnnotations()["dioscuri.amazee.io/migrate"]; okOld {
-		if _, ok := e.MetaNew.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
-			return true
-		}
-		return true
-	}
-	return false
-}
-
-// Generic .
-func (RoutePredicates) Generic(e event.GenericEvent) bool {
-	// handle "dioscuri.amazee.io/migrate" annotation
-	if _, ok := e.Meta.GetAnnotations()["dioscuri.amazee.io/migrate"]; ok {
-		return true
-	}
-	return false
-}
-
 // IngressPredicates .
 type IngressPredicates struct {
 	predicate.Funcs

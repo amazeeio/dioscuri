@@ -31,18 +31,15 @@ import (
 // HostMigrationReconciler reconciles a HostMigration object
 type HostMigrationReconciler struct {
 	client.Client
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	Labels    map[string]string
-	Openshift bool
+	Log    logr.Logger
+	Scheme *runtime.Scheme
+	Labels map[string]string
 }
 
 // +kubebuilder:rbac:groups=dioscuri.amazee.io,resources=hostmigrations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=dioscuri.amazee.io,resources=hostmigrations/status,verbs=get;update;patch
 
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes/custom-host,verbs=create
 
 // +kubebuilder:rbac:groups="*",resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="*",resources=ingress/status,verbs=get;update;patch
@@ -75,14 +72,8 @@ func (r *HostMigrationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	if dioscuri.ObjectMeta.DeletionTimestamp.IsZero() {
 		// check if the migrate annotation is set to true
 		if dioscuri.Annotations["dioscuri.amazee.io/migrate"] == "true" {
-			if r.Openshift {
-				// if this controller is running in openshift
-				// run the openshift handler side of the process
-				r.OpenshiftHandler(ctx, opLog, dioscuri)
-			} else {
-				// otherwise its probably kubernetes
-				r.KubernetesHandler(ctx, opLog, dioscuri)
-			}
+			// otherwise its probably kubernetes
+			r.KubernetesHandler(ctx, opLog, dioscuri)
 		}
 		// The object is not being deleted, so if it does not have our finalizer,
 		// then lets add the finalizer and update the object. This is equivalent

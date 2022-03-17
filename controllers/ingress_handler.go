@@ -12,7 +12,7 @@ import (
 	certv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"gopkg.in/matryer/try.v1"
 	corev1 "k8s.io/api/core/v1"
-	networkv1beta1 "k8s.io/api/networking/v1beta1"
+	networkv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -70,41 +70,10 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 		return ctrl.Result{}, nil
 	}
 
-	/*
-		// START ACME-CHALLENGE CLEANUP SECTION
-		// check ingress in the source namespace for any pending acme-challenges
-		// check if any ingress in the source namespace have an exposer label, we need to remove these before we move any ingress
-		acmeLabels := map[string]string{"acme.openshift.io/exposer": "true"}
-		acmeSourceToDestination := &networkv1beta1.IngressList{}
-		if err := r.getIngressWithLabel(&dioscuri, acmeSourceToDestination, sourceNamespace, acmeLabels); err != nil {
-			opLog.Info(fmt.Sprintf("%v", err))
-		}
-		if err := r.cleanUpAcmeChallenges(&dioscuri, acmeSourceToDestination); err != nil {
-			r.updateKubernetesStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
-				Status:    "True",
-				Type:      "failed",
-				Condition: fmt.Sprintf("%v", err),
-			}, activeMigratedIngress, standbyMigratedIngress)
-			return ctrl.Result{}, err
-		}
-		acmeDestinationToSource := &networkv1beta1.IngressList{}
-		if err := r.getIngressWithLabel(&dioscuri, acmeDestinationToSource, destinationNamespace, acmeLabels); err != nil {
-			opLog.Info(fmt.Sprintf("%v", err))
-		}
-		if err := r.cleanUpAcmeChallenges(&dioscuri, acmeDestinationToSource); err != nil {
-			r.updateKubernetesStatusCondition(&dioscuri, dioscuriv1.HostMigrationConditions{
-				Status:    "True",
-				Type:      "failed",
-				Condition: fmt.Sprintf("%v", err),
-			}, activeMigratedIngress, standbyMigratedIngress)
-			return ctrl.Result{}, err
-		}
-		// END ACME-CHALLENGE CLEANUP SECTION
-	*/
 	// START CHECKING SERVICES SECTION
 	migrateLabels := map[string]string{"dioscuri.amazee.io/migrate": "true"}
 	// get the ingress from the source namespace, these will get moved to the destination namespace
-	ingressSourceToDestination := &networkv1beta1.IngressList{}
+	ingressSourceToDestination := &networkv1.IngressList{}
 	if err := r.getIngressWithLabel(&dioscuri,
 		ingressSourceToDestination,
 		sourceNamespace,
@@ -113,7 +82,7 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 		opLog.Info(fmt.Sprintf("%v", err))
 	}
 	// get the ingress from the destination namespace, these will get moved to the source namespace
-	ingressDestinationToSource := &networkv1beta1.IngressList{}
+	ingressDestinationToSource := &networkv1.IngressList{}
 	if err := r.getIngressWithLabel(&dioscuri,
 		ingressDestinationToSource,
 		destinationNamespace,
@@ -122,7 +91,7 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 		opLog.Info(fmt.Sprintf("%v", err))
 	}
 	// check that the services for the ingress we are moving exist in each namespace
-	migrateSourceToDestination := &networkv1beta1.IngressList{}
+	migrateSourceToDestination := &networkv1.IngressList{}
 	if err := r.checkKubernetesServices(ctx,
 		&dioscuri,
 		ingressSourceToDestination,
@@ -141,7 +110,7 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 		)
 		return ctrl.Result{}, nil
 	}
-	migrateDestinationToSource := &networkv1beta1.IngressList{}
+	migrateDestinationToSource := &networkv1.IngressList{}
 	if err := r.checkKubernetesServices(ctx,
 		&dioscuri,
 		ingressDestinationToSource,
@@ -322,8 +291,8 @@ func (r *HostMigrationReconciler) KubernetesHandler(ctx context.Context, opLog l
 
 func (r *HostMigrationReconciler) checkKubernetesServices(ctx context.Context,
 	dioscuri *dioscuriv1.HostMigration,
-	ingressList *networkv1beta1.IngressList,
-	ingressToMigrate *networkv1beta1.IngressList,
+	ingressList *networkv1.IngressList,
+	ingressToMigrate *networkv1.IngressList,
 	destinationNamespace string,
 ) error {
 	// check service for ingress exists in destination namespace
@@ -354,7 +323,7 @@ func (r *HostMigrationReconciler) checkKubernetesServices(ctx context.Context,
 
 func (r *HostMigrationReconciler) checkSecrets(ctx context.Context,
 	dioscuri *dioscuriv1.HostMigration,
-	ingressList *networkv1beta1.IngressList,
+	ingressList *networkv1.IngressList,
 	destinationNamespace string,
 ) error {
 	// check service for ingress exists in destination namespace
@@ -383,7 +352,7 @@ func (r *HostMigrationReconciler) checkSecrets(ctx context.Context,
 }
 
 func (r *HostMigrationReconciler) getIngressWithLabel(dioscuri *dioscuriv1.HostMigration,
-	ingress *networkv1beta1.IngressList,
+	ingress *networkv1.IngressList,
 	namespace string,
 	labels map[string]string,
 ) error {
@@ -398,13 +367,13 @@ func (r *HostMigrationReconciler) getIngressWithLabel(dioscuri *dioscuriv1.HostM
 	return nil
 }
 
-// func (r *HostMigrationReconciler) cleanUpAcmeChallenges(dioscuri *dioscuriv1.HostMigration, ingressList *networkv1beta1.IngressList) error {
+// func (r *HostMigrationReconciler) cleanUpAcmeChallenges(dioscuri *dioscuriv1.HostMigration, ingressList *networkv1.IngressList) error {
 // 	// we need to ensure there are no stale or pending acme challenges for any ingress we are going to
 // 	// opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 // 	// for _, ingress := range ingressList.Items {
 // 	// 	opLog.Info(fmt.Sprintf("Found acme-challenge for %s, proceeding to delete the pending challenge before moving the ingress", ingress.Spec.Host))
 // 	// 	// deep copy the ingress
-// 	// 	acmeIngress := &networkv1beta1.Ingress{}
+// 	// 	acmeIngress := &networkv1.Ingress{}
 // 	// 	ingress.DeepCopyInto(acmeIngress)
 // 	// 	if err := r.removeIngress(acmeIngress); err != nil {
 // 	// 		// we should break here before we try to migrate the ingress, broken acme is better than broken site
@@ -416,13 +385,13 @@ func (r *HostMigrationReconciler) getIngressWithLabel(dioscuri *dioscuriv1.HostM
 
 func (r *HostMigrationReconciler) individualIngressMigration(ctx context.Context,
 	dioscuri *dioscuriv1.HostMigration,
-	ingress *networkv1beta1.Ingress,
+	ingress *networkv1.Ingress,
 	sourceNamespace string,
 	destinationNamespace string,
-) (*networkv1beta1.Ingress, error) {
+) (*networkv1.Ingress, error) {
 	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
-	oldIngress := &networkv1beta1.Ingress{}
-	newIngress := &networkv1beta1.Ingress{}
+	oldIngress := &networkv1.Ingress{}
+	newIngress := &networkv1.Ingress{}
 	err := r.Get(context.TODO(), types.NamespacedName{Namespace: sourceNamespace, Name: ingress.ObjectMeta.Name}, oldIngress)
 	if err != nil {
 		return newIngress, fmt.Errorf("Ingress %s in namespace %s doesn't exist: %v", ingress.ObjectMeta.Name, sourceNamespace, err)
@@ -457,8 +426,8 @@ func (r *HostMigrationReconciler) individualIngressMigration(ctx context.Context
 // add ingress, and then remove the old one only if we successfully create the new one
 func (r *HostMigrationReconciler) migrateIngress(ctx context.Context,
 	dioscuri *dioscuriv1.HostMigration,
-	newIngress *networkv1beta1.Ingress,
-	oldIngress *networkv1beta1.Ingress,
+	newIngress *networkv1.Ingress,
+	oldIngress *networkv1.Ingress,
 ) error {
 	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	// delete old ingress from the old namespace
@@ -473,7 +442,7 @@ func (r *HostMigrationReconciler) migrateIngress(ctx context.Context,
 	return nil
 }
 
-func (r *HostMigrationReconciler) updateIngress(ctx context.Context, dioscuri *dioscuriv1.HostMigration, newIngress *networkv1beta1.Ingress, oldIngressNamespace string, postMigrateResourcesJSON string) error {
+func (r *HostMigrationReconciler) updateIngress(ctx context.Context, dioscuri *dioscuriv1.HostMigration, newIngress *networkv1.Ingress, oldIngressNamespace string, postMigrateResourcesJSON string) error {
 	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	// check a few times to make sure the old ingress no longer exists
 	for i := 0; i < 10; i++ {
@@ -512,7 +481,7 @@ func (r *HostMigrationReconciler) updateIngress(ctx context.Context, dioscuri *d
 }
 
 // add any ingress if they don't already exist in the new namespace
-func (r *HostMigrationReconciler) addIngressIfNotExist(ctx context.Context, dioscuri *dioscuriv1.HostMigration, ingress *networkv1beta1.Ingress) error {
+func (r *HostMigrationReconciler) addIngressIfNotExist(ctx context.Context, dioscuri *dioscuriv1.HostMigration, ingress *networkv1.Ingress) error {
 	// add ingress
 	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	opLog.Info(fmt.Sprintf("Getting existing ingress %s in namespace %s", ingress.ObjectMeta.Name, ingress.ObjectMeta.Namespace))
@@ -527,10 +496,10 @@ func (r *HostMigrationReconciler) addIngressIfNotExist(ctx context.Context, dios
 	return nil
 }
 
-func (r *HostMigrationReconciler) checkOldIngressExists(dioscuri *dioscuriv1.HostMigration, ingress *networkv1beta1.Ingress, sourceNamespace string) bool {
+func (r *HostMigrationReconciler) checkOldIngressExists(dioscuri *dioscuriv1.HostMigration, ingress *networkv1.Ingress, sourceNamespace string) bool {
 	opLog := r.Log.WithValues("hostmigration", dioscuri.ObjectMeta.Namespace)
 	opLog.Info(fmt.Sprintf("Checking ingress %s is not in source namespace %s", ingress.ObjectMeta.Name, sourceNamespace))
-	getIngress := &networkv1beta1.Ingress{}
+	getIngress := &networkv1.Ingress{}
 	err := r.Get(context.TODO(), types.NamespacedName{Namespace: sourceNamespace, Name: ingress.ObjectMeta.Name}, getIngress)
 	if err != nil {
 		// there is no ingress in the source namespace
@@ -542,7 +511,7 @@ func (r *HostMigrationReconciler) checkOldIngressExists(dioscuri *dioscuriv1.Hos
 }
 
 // remove a given ingress
-func (r *HostMigrationReconciler) removeIngress(ctx context.Context, ingress *networkv1beta1.Ingress) error {
+func (r *HostMigrationReconciler) removeIngress(ctx context.Context, ingress *networkv1.Ingress) error {
 	opLog := r.Log.WithValues("hostmigration", ingress.ObjectMeta.Namespace)
 	// remove ingress
 	if err := r.Delete(ctx, ingress); err != nil {
@@ -605,7 +574,7 @@ func (r *HostMigrationReconciler) updateKubernetesStatusCondition(ctx context.Co
 	return nil
 }
 
-func (r *HostMigrationReconciler) migrateResourcePatch(ctx context.Context, ingress networkv1beta1.Ingress, migrateResourcesJSON string) error {
+func (r *HostMigrationReconciler) migrateResourcePatch(ctx context.Context, ingress networkv1.Ingress, migrateResourcesJSON string) error {
 	if migrateResourcesJSON != "" {
 		var migrateResources []map[string]interface{}
 		migrateResourcesAnnotations := make(map[string]interface{})
@@ -647,7 +616,7 @@ func (r *HostMigrationReconciler) migrateResourcePatch(ctx context.Context, ingr
 	return nil
 }
 
-func (r *HostMigrationReconciler) patchIngress(ctx context.Context, ingress *networkv1beta1.Ingress, annotations map[string]interface{}) error {
+func (r *HostMigrationReconciler) patchIngress(ctx context.Context, ingress *networkv1.Ingress, annotations map[string]interface{}) error {
 	mergePatch, err := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": annotations,
@@ -705,7 +674,7 @@ func (r *HostMigrationReconciler) patchCertificate(ctx context.Context, certific
 }
 
 // copy any secret into a slice of secrets
-func (r *HostMigrationReconciler) copySecrets(ctx context.Context, ingress *networkv1beta1.Ingress) []*corev1.Secret {
+func (r *HostMigrationReconciler) copySecrets(ctx context.Context, ingress *networkv1.Ingress) []*corev1.Secret {
 	var secrets []*corev1.Secret
 	for _, tls := range ingress.Spec.TLS {
 		secret := &corev1.Secret{}
@@ -743,7 +712,7 @@ func (r *HostMigrationReconciler) createSecrets(ctx context.Context, destination
 }
 
 // delete any old secrets in the namespace
-func (r *HostMigrationReconciler) deleteOldSecrets(ctx context.Context, namespace string, ingress *networkv1beta1.Ingress) (bool, []string) {
+func (r *HostMigrationReconciler) deleteOldSecrets(ctx context.Context, namespace string, ingress *networkv1.Ingress) (bool, []string) {
 	deleted := true
 	var secrets []string
 	for _, tls := range ingress.Spec.TLS {
@@ -781,7 +750,7 @@ func (r *HostMigrationReconciler) deleteOldSecrets(ctx context.Context, namespac
 }
 
 // copy any certificate into a slice of certificates
-func (r *HostMigrationReconciler) copyCertificates(ctx context.Context, ingress *networkv1beta1.Ingress) []*certv1alpha2.Certificate {
+func (r *HostMigrationReconciler) copyCertificates(ctx context.Context, ingress *networkv1.Ingress) []*certv1alpha2.Certificate {
 	var certificates []*certv1alpha2.Certificate
 	for _, tls := range ingress.Spec.TLS {
 		certificate := &certv1alpha2.Certificate{}
