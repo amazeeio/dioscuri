@@ -16,6 +16,8 @@ limitations under the License.
 package controllers
 
 import (
+	// "os"
+
 	"path/filepath"
 	"testing"
 

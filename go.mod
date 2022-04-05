@@ -3,6 +3,7 @@ module github.com/amazeeio/dioscuri
 go 1.13
 
 require (
+	cloud.google.com/go v0.81.0 // indirect
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/go-logr/logr v0.4.0
 	github.com/jetstack/cert-manager v0.15.0

@@ -1,4 +1,7 @@
 controller:
+  watchIngressWithoutClass: true
+  ingressClassResource:
+    default: true
   service:
     type: NodePort
     nodePorts:
